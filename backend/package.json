@@ -1,15 +1,20 @@
 {
   "dependencies": {
+    "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.0.0",
+    "@nestjs/core": "^12.0.1",
     "@nestjs/jwt": "^12.0.1",
     "@nestjs/passport": "^12.0.0",
+    "@nestjs/platform-express": "^12.0.1",
     "@prisma/client": "^6.19.3",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
   },
   "allowScripts": {
     "bcrypt@6.0.0": true,
@@ -18,9 +23,21 @@
     "@prisma/client@6.19.3": true
   },
   "devDependencies": {
+    "@nestjs/cli": "^12.0.0",
+    "@nestjs/testing": "^12.0.1",
     "@types/bcrypt": "^6.0.0",
+    "@types/node": "^26.4.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.23.1",
-    "prisma": "^6.19.3"
+    "prisma": "^6.19.3",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3"
+  },
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch"
   }
 }
