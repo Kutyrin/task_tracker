@@ -50,6 +50,21 @@ export class AuthService {
     return this.generateTokens(user.id, user.email);
   }
 
+  async logout(userId: number) {
+    await this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        refreshTokenHash: null,
+      },
+    });
+
+    return {
+      message: 'Logged out successfully',
+    };
+  }
+
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
       where: {
