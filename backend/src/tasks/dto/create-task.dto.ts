@@ -10,7 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 
-import { TaskPriority } from '@prisma/client';
+import { IssueType, TaskPriority } from '@prisma/client';
 
 export class CreateTaskDto {
   @IsString()
@@ -22,6 +22,10 @@ export class CreateTaskDto {
   @IsString()
   @MaxLength(5000)
   description?: string;
+
+  @IsOptional()
+  @IsEnum(IssueType)
+  issueType?: IssueType;
 
   @IsOptional()
   @IsEnum(TaskPriority)
@@ -40,4 +44,10 @@ export class CreateTaskDto {
   @IsInt()
   @Min(1)
   columnId!: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  assigneeId?: number;
 }

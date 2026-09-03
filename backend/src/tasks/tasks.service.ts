@@ -5,6 +5,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { SortOrder, TaskQueryDto, TaskSortBy } from './dto/task-query.dto';
+import { mapTask, taskRelations } from './task.mapper';
 
 @Injectable()
 export class TasksService {
@@ -39,6 +40,19 @@ export class TasksService {
       throw new NotFoundException('Column not found in this project');
     }
 
+    if (dto.assigneeId) {
+      const assignee = await this.prisma.projectMember.findFirst({
+        where: {
+          projectId: dto.projectId,
+          userId: dto.assigneeId,
+        },
+      });
+
+      if (!assignee) {
+        throw new NotFoundException('Assignee is not a member of this project');
+      }
+    }
+
     const lastTask = await this.prisma.task.findFirst({
       where: {
         columnId: dto.columnId,
@@ -50,18 +64,45 @@ export class TasksService {
 
     const position = lastTask ? lastTask.position + 1000 : 1000;
 
-    return this.prisma.task.create({
-      data: {
-        title: dto.title,
-        description: dto.description,
-        priority: dto.priority,
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
-        projectId: dto.projectId,
-        columnId: dto.columnId,
-        position,
-        userId,
-      },
+    const task = await this.prisma.$transaction(async (tx) => {
+      const updatedProject = await tx.project.update({
+        where: {
+          id: dto.projectId,
+        },
+        data: {
+          issueSequence: {
+            increment: 1,
+          },
+        },
+        select: {
+          issueSequence: true,
+        },
+      });
+
+      const createdTask = await tx.task.create({
+        data: {
+          title: dto.title,
+          description: dto.description,
+          issueNumber: updatedProject.issueSequence,
+          issueType: dto.issueType,
+          priority: dto.priority,
+          dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+
+          reporterId: userId,
+          assigneeId: dto.assigneeId,
+
+          projectId: dto.projectId,
+          columnId: dto.columnId,
+          position,
+          userId,
+        },
+        include: taskRelations,
+      });
+
+      return createdTask;
     });
+
+    return mapTask(task);
   }
 
   async move(userId: number, taskId: number, dto: MoveTaskDto) {
@@ -93,7 +134,7 @@ export class TasksService {
       throw new NotFoundException('Column not found in task project');
     }
 
-    return this.prisma.task.update({
+    const updatedTask = await this.prisma.task.update({
       where: {
         id: taskId,
       },
@@ -101,7 +142,10 @@ export class TasksService {
         columnId: dto.columnId,
         position: dto.position,
       },
+      include: taskRelations,
     });
+
+    return mapTask(updatedTask);
   }
 
   async findAll(userId: number, query: TaskQueryDto) {
@@ -120,9 +164,13 @@ export class TasksService {
     const where = {
       userId,
 
-      ...(columnId && { columnId }),
+      ...(columnId && {
+        columnId,
+      }),
 
-      ...(priority && { priority }),
+      ...(priority && {
+        priority,
+      }),
 
       ...(search && {
         title: {
@@ -153,6 +201,7 @@ export class TasksService {
         },
         skip: (page - 1) * limit,
         take: limit,
+        include: taskRelations,
       }),
 
       this.prisma.task.count({
@@ -160,8 +209,10 @@ export class TasksService {
       }),
     ]);
 
+    const mappedTasks = tasks.map(mapTask);
+
     return {
-      data: tasks,
+      data: mappedTasks,
       meta: {
         page,
         limit,
@@ -179,19 +230,20 @@ export class TasksService {
         id: taskId,
         userId,
       },
+      include: taskRelations,
     });
 
     if (!task) {
       throw new NotFoundException('Task not found');
     }
 
-    return task;
+    return mapTask(task);
   }
 
   async update(userId: number, taskId: number, dto: UpdateTaskDto) {
     await this.findOne(userId, taskId);
 
-    return this.prisma.task.update({
+    const task = await this.prisma.task.update({
       where: {
         id: taskId,
       },
@@ -199,7 +251,10 @@ export class TasksService {
         ...dto,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       },
+      include: taskRelations,
     });
+
+    return mapTask(task);
   }
 
   async remove(userId: number, taskId: number) {
