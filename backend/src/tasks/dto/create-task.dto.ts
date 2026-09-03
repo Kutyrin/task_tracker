@@ -1,9 +1,12 @@
+import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
 
@@ -27,4 +30,14 @@ export class CreateTaskDto {
   @IsOptional()
   @IsDateString()
   dueDate?: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  projectId!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  columnId!: number;
 }

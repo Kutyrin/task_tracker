@@ -9,7 +9,7 @@ import {
   Min,
 } from 'class-validator';
 
-import { TaskPriority, TaskStatus } from '@prisma/client';
+import { TaskPriority } from '@prisma/client';
 
 export enum TaskSortBy {
   CREATED_AT = 'createdAt',
@@ -39,8 +39,10 @@ export class TaskQueryDto {
   limit = 10;
 
   @IsOptional()
-  @IsEnum(TaskStatus)
-  status?: TaskStatus;
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  columnId?: number;
 
   @IsOptional()
   @IsEnum(TaskPriority)
@@ -51,18 +53,18 @@ export class TaskQueryDto {
   search?: string;
 
   @IsOptional()
-  @IsEnum(TaskSortBy)
-  sortBy: TaskSortBy = TaskSortBy.CREATED_AT;
-
-  @IsOptional()
-  @IsEnum(SortOrder)
-  sortOrder: SortOrder = SortOrder.DESC;
-
-  @IsOptional()
   @IsDateString()
   dueBefore?: string;
 
   @IsOptional()
   @IsDateString()
   dueAfter?: string;
+
+  @IsOptional()
+  @IsEnum(TaskSortBy)
+  sortBy: TaskSortBy = TaskSortBy.CREATED_AT;
+
+  @IsOptional()
+  @IsEnum(SortOrder)
+  sortOrder: SortOrder = SortOrder.DESC;
 }

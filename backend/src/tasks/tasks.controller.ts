@@ -17,6 +17,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { TasksService } from './tasks.service';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TaskQueryDto } from './dto/task-query.dto';
+import { MoveTaskDto } from './dto/move-task.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -46,6 +47,15 @@ export class TasksController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.tasksService.findOne(req.user.userId, id);
+  }
+
+  @Patch(':id/move')
+  move(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: MoveTaskDto,
+  ) {
+    return this.tasksService.move(req.user.userId, id, dto);
   }
 
   @Patch(':id')

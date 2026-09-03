@@ -14,37 +14,113 @@ datasource db {
 }
 
 model User {
-  id              Int      @id @default(autoincrement())
-  email           String   @unique
-  password        String
-  refreshTokenHash String?
-  createdAt        DateTime @default(now())
+  id                Int             @id @default(autoincrement())
+  email             String          @unique
+  password          String
+  refreshTokenHash  String?
+  createdAt         DateTime        @default(now())
 
-  tasks            Task[]
+  tasks              Task[]
+  ownedProjects      Project[]       @relation("ProjectOwner")
+  projectMemberships ProjectMember[]
+  boards             Board[]
+}
+
+model Project {
+  id          Int             @id @default(autoincrement())
+  name        String
+  key         String          @unique
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  ownerId     Int
+  owner       User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  members     ProjectMember[]
+  tasks       Task[]
+  boards      Board[]
+
+  @@index([ownerId])
+}
+
+model ProjectMember {
+  id        Int         @id @default(autoincrement())
+  role      ProjectRole @default(MEMBER)
+  createdAt DateTime    @default(now())
+
+  projectId Int
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId    Int
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model Board {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId Int
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  ownerId   Int
+  owner     User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  columns   BoardColumn[]
+
+  @@index([projectId])
+  @@index([ownerId])
+}
+
+model BoardColumn {
+  id        Int      @id @default(autoincrement())
+  name      String
+  position  Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  boardId   Int
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  tasks     Task[]
+
+  @@index([boardId])
 }
 
 model Task {
   id          Int          @id @default(autoincrement())
   title       String
   description String?
-  status      TaskStatus   @default(TODO)
   priority    TaskPriority @default(MEDIUM)
   dueDate     DateTime?
+  position    Float        @default(0)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   userId      Int
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  projectId   Int?
+  project     Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  columnId    Int?
+  column      BoardColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
+
   @@index([userId])
-  @@index([status])
   @@index([dueDate])
+  @@index([projectId])
+  @@index([columnId])
 }
 
-enum TaskStatus {
-  TODO
-  IN_PROGRESS
-  DONE
+enum ProjectRole {
+  OWNER
+  ADMIN
+  MEMBER
 }
 
 enum TaskPriority {

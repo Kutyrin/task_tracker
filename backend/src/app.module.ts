@@ -6,6 +6,8 @@ import { HealthController } from './health.controller';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { TasksModule } from './tasks/tasks.module';
+import { ProjectsModule } from './projects/projects.module';
+import { BoardsModule } from './boards/boards.module';
 
 @Module({
   imports: [
@@ -15,6 +17,8 @@ import { TasksModule } from './tasks/tasks.module';
     PrismaModule,
     AuthModule,
     TasksModule,
+    ProjectsModule,
+    BoardsModule,
   ],
   controllers: [AppController, HealthController],
 })
