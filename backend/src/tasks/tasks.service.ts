@@ -11,6 +11,21 @@ import { mapTask, taskRelations } from './task.mapper';
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async ensureProjectMember(userId: number, projectId: number) {
+    const member = await this.prisma.projectMember.findFirst({
+      where: {
+        projectId,
+        userId,
+      },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return member;
+  }
+
   async create(userId: number, dto: CreateTaskDto) {
     const project = await this.prisma.project.findFirst({
       where: {
@@ -41,16 +56,7 @@ export class TasksService {
     }
 
     if (dto.assigneeId) {
-      const assignee = await this.prisma.projectMember.findFirst({
-        where: {
-          projectId: dto.projectId,
-          userId: dto.assigneeId,
-        },
-      });
-
-      if (!assignee) {
-        throw new NotFoundException('Assignee is not a member of this project');
-      }
+      await this.ensureProjectMember(dto.assigneeId, dto.projectId);
     }
 
     const lastTask = await this.prisma.task.findFirst({
@@ -106,10 +112,9 @@ export class TasksService {
   }
 
   async move(userId: number, taskId: number, dto: MoveTaskDto) {
-    const task = await this.prisma.task.findFirst({
+    const task = await this.prisma.task.findUnique({
       where: {
         id: taskId,
-        userId,
       },
     });
 
@@ -120,6 +125,8 @@ export class TasksService {
     if (!task.projectId) {
       throw new NotFoundException('Task is not assigned to a project');
     }
+
+    await this.ensureProjectMember(userId, task.projectId);
 
     const column = await this.prisma.boardColumn.findFirst({
       where: {
@@ -161,8 +168,23 @@ export class TasksService {
       sortOrder = SortOrder.DESC,
     } = query;
 
+    const projectMemberships = await this.prisma.projectMember.findMany({
+      where: {
+        userId,
+      },
+      select: {
+        projectId: true,
+      },
+    });
+
+    const projectIds = projectMemberships.map(
+      (membership) => membership.projectId,
+    );
+
     const where = {
-      userId,
+      projectId: {
+        in: projectIds,
+      },
 
       ...(columnId && {
         columnId,
@@ -225,10 +247,9 @@ export class TasksService {
   }
 
   async findOne(userId: number, taskId: number) {
-    const task = await this.prisma.task.findFirst({
+    const task = await this.prisma.task.findUnique({
       where: {
         id: taskId,
-        userId,
       },
       include: taskRelations,
     });
@@ -237,19 +258,51 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
+    if (!task.projectId) {
+      throw new NotFoundException('Task is not assigned to a project');
+    }
+
+    await this.ensureProjectMember(userId, task.projectId);
+
     return mapTask(task);
   }
 
   async update(userId: number, taskId: number, dto: UpdateTaskDto) {
-    await this.findOne(userId, taskId);
+    const existingTask = await this.prisma.task.findUnique({
+      where: {
+        id: taskId,
+      },
+    });
+
+    if (!existingTask) {
+      throw new NotFoundException('Task not found');
+    }
+
+    if (!existingTask.projectId) {
+      throw new NotFoundException('Task is not assigned to a project');
+    }
+
+    await this.ensureProjectMember(userId, existingTask.projectId);
+
+    if (dto.assigneeId !== undefined && dto.assigneeId !== null) {
+      await this.ensureProjectMember(dto.assigneeId, existingTask.projectId);
+    }
 
     const task = await this.prisma.task.update({
       where: {
         id: taskId,
       },
       data: {
-        ...dto,
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+        title: dto.title,
+        description: dto.description,
+        issueType: dto.issueType,
+        priority: dto.priority,
+        dueDate: dto.dueDate
+          ? new Date(dto.dueDate)
+          : dto.dueDate === undefined
+            ? undefined
+            : null,
+        assigneeId: dto.assigneeId,
       },
       include: taskRelations,
     });

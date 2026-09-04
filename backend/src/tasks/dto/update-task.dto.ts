@@ -1,13 +1,16 @@
+import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
 
-import { TaskPriority } from '@prisma/client';
+import { IssueType, TaskPriority } from '@prisma/client';
 
 export class UpdateTaskDto {
   @IsOptional()
@@ -22,10 +25,20 @@ export class UpdateTaskDto {
   description?: string;
 
   @IsOptional()
+  @IsEnum(IssueType)
+  issueType?: IssueType;
+
+  @IsOptional()
   @IsEnum(TaskPriority)
   priority?: TaskPriority;
 
   @IsOptional()
   @IsDateString()
   dueDate?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  assigneeId?: number | null;
 }

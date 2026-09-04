@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
+import { ProjectRole } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBoardDto } from './dto/create-board.dto';
@@ -11,21 +17,59 @@ import { UpdateColumnDto } from './dto/update-column.dto';
 export class BoardsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: number, dto: CreateBoardDto) {
-    const project = await this.prisma.project.findFirst({
+  private async getProjectMember(userId: number, projectId: number) {
+    const member = await this.prisma.projectMember.findFirst({
       where: {
-        id: dto.projectId,
-        members: {
-          some: {
-            userId,
+        projectId,
+        userId,
+      },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return member;
+  }
+
+  private async requireBoardManager(userId: number, projectId: number) {
+    const member = await this.getProjectMember(userId, projectId);
+
+    if (
+      member.role !== ProjectRole.OWNER &&
+      member.role !== ProjectRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Only project owner or admin can manage boards',
+      );
+    }
+
+    return member;
+  }
+
+  private async getBoard(userId: number, boardId: number) {
+    const board = await this.prisma.board.findFirst({
+      where: {
+        id: boardId,
+        project: {
+          members: {
+            some: {
+              userId,
+            },
           },
         },
       },
     });
 
-    if (!project) {
-      throw new NotFoundException('Project not found');
+    if (!board) {
+      throw new NotFoundException('Board not found');
     }
+
+    return board;
+  }
+
+  async create(userId: number, dto: CreateBoardDto) {
+    await this.requireBoardManager(userId, dto.projectId);
 
     return this.prisma.$transaction(async (tx) => {
       const board = await tx.board.create({
@@ -145,7 +189,9 @@ export class BoardsService {
   }
 
   async update(userId: number, boardId: number, dto: UpdateBoardDto) {
-    await this.findOne(userId, boardId);
+    const board = await this.getBoard(userId, boardId);
+
+    await this.requireBoardManager(userId, board.projectId);
 
     return this.prisma.board.update({
       where: {
@@ -156,16 +202,9 @@ export class BoardsService {
   }
 
   async remove(userId: number, boardId: number) {
-    const board = await this.prisma.board.findFirst({
-      where: {
-        id: boardId,
-        ownerId: userId,
-      },
-    });
+    const board = await this.getBoard(userId, boardId);
 
-    if (!board) {
-      throw new NotFoundException('Board not found');
-    }
+    await this.requireBoardManager(userId, board.projectId);
 
     await this.prisma.board.delete({
       where: {
@@ -179,7 +218,9 @@ export class BoardsService {
   }
 
   async createColumn(userId: number, boardId: number, dto: CreateColumnDto) {
-    await this.findOne(userId, boardId);
+    const board = await this.getBoard(userId, boardId);
+
+    await this.requireBoardManager(userId, board.projectId);
 
     const lastColumn = await this.prisma.boardColumn.findFirst({
       where: {
@@ -202,7 +243,7 @@ export class BoardsService {
   }
 
   async findColumns(userId: number, boardId: number) {
-    await this.findOne(userId, boardId);
+    await this.getBoard(userId, boardId);
 
     return this.prisma.boardColumn.findMany({
       where: {
@@ -227,7 +268,9 @@ export class BoardsService {
     columnId: number,
     dto: UpdateColumnDto,
   ) {
-    await this.findOne(userId, boardId);
+    const board = await this.getBoard(userId, boardId);
+
+    await this.requireBoardManager(userId, board.projectId);
 
     const column = await this.prisma.boardColumn.findFirst({
       where: {
@@ -254,7 +297,9 @@ export class BoardsService {
     columnId: number,
     dto: MoveColumnDto,
   ) {
-    await this.findOne(userId, boardId);
+    const board = await this.getBoard(userId, boardId);
+
+    await this.requireBoardManager(userId, board.projectId);
 
     const column = await this.prisma.boardColumn.findFirst({
       where: {
@@ -278,7 +323,9 @@ export class BoardsService {
   }
 
   async removeColumn(userId: number, boardId: number, columnId: number) {
-    await this.findOne(userId, boardId);
+    const board = await this.getBoard(userId, boardId);
+
+    await this.requireBoardManager(userId, board.projectId);
 
     const column = await this.prisma.boardColumn.findFirst({
       where: {
