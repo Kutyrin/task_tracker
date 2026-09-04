@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { TasksModule } from './tasks/tasks.module';
 import { ProjectsModule } from './projects/projects.module';
 import { BoardsModule } from './boards/boards.module';
+import { CommentsModule } from './comments/comments.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { BoardsModule } from './boards/boards.module';
     TasksModule,
     ProjectsModule,
     BoardsModule,
+    CommentsModule,
   ],
   controllers: [AppController, HealthController],
 })

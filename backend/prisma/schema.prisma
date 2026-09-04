@@ -27,6 +27,8 @@ model User {
 
   reportedTasks Task[] @relation("TaskReporter")
   assignedTasks Task[] @relation("TaskAssignee")
+
+  comments Comment[]
 }
 
 model Project {
@@ -123,6 +125,8 @@ model Task {
   columnId Int?
   column   BoardColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
 
+  comments Comment[]
+
   @@unique([projectId, issueNumber])
   @@index([userId])
   @@index([reporterId])
@@ -130,6 +134,22 @@ model Task {
   @@index([dueDate])
   @@index([projectId])
   @@index([columnId])
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  taskId Int
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
 }
 
 enum ProjectRole {
