@@ -9,6 +9,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { ProjectsModule } from './projects/projects.module';
 import { BoardsModule } from './boards/boards.module';
 import { CommentsModule } from './comments/comments.module';
+import { LabelsModule } from './labels/labels.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { CommentsModule } from './comments/comments.module';
     ProjectsModule,
     BoardsModule,
     CommentsModule,
+    LabelsModule,
   ],
   controllers: [AppController, HealthController],
 })

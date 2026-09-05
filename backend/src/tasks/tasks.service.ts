@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
+import { Prisma } from '@prisma/client';
+
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -85,7 +87,7 @@ export class TasksService {
         },
       });
 
-      const createdTask = await tx.task.create({
+      return tx.task.create({
         data: {
           title: dto.title,
           description: dto.description,
@@ -104,8 +106,6 @@ export class TasksService {
         },
         include: taskRelations,
       });
-
-      return createdTask;
     });
 
     return mapTask(task);
@@ -160,8 +160,10 @@ export class TasksService {
       page = 1,
       limit = 10,
       columnId,
+      issueType,
       priority,
       search,
+      labels,
       dueBefore,
       dueAfter,
       sortBy = TaskSortBy.CREATED_AT,
@@ -181,7 +183,51 @@ export class TasksService {
       (membership) => membership.projectId,
     );
 
-    const where = {
+    const labelNames = labels
+      ? labels
+          .split(',')
+          .map((name) => name.trim())
+          .filter(Boolean)
+      : [];
+
+    const searchValue = search?.trim();
+
+    const searchConditions: Prisma.TaskWhereInput[] = [];
+
+    if (searchValue) {
+      searchConditions.push(
+        {
+          title: {
+            contains: searchValue,
+            mode: 'insensitive',
+          },
+        },
+        {
+          description: {
+            contains: searchValue,
+            mode: 'insensitive',
+          },
+        },
+      );
+
+      const issueKeyMatch = searchValue.match(/^([a-z0-9]+)-(\d+)$/i);
+
+      if (issueKeyMatch) {
+        const [, projectKey, issueNumber] = issueKeyMatch;
+
+        searchConditions.push({
+          project: {
+            key: {
+              equals: projectKey,
+              mode: 'insensitive',
+            },
+          },
+          issueNumber: Number(issueNumber),
+        });
+      }
+    }
+
+    const where: Prisma.TaskWhereInput = {
       projectId: {
         in: projectIds,
       },
@@ -190,14 +236,27 @@ export class TasksService {
         columnId,
       }),
 
+      ...(issueType && {
+        issueType,
+      }),
+
       ...(priority && {
         priority,
       }),
 
-      ...(search && {
-        title: {
-          contains: search,
-          mode: 'insensitive' as const,
+      ...(searchConditions.length > 0 && {
+        OR: searchConditions,
+      }),
+
+      ...(labelNames.length > 0 && {
+        labels: {
+          some: {
+            label: {
+              name: {
+                in: labelNames,
+              },
+            },
+          },
         },
       }),
 
@@ -215,21 +274,19 @@ export class TasksService {
         : {}),
     };
 
-    const [tasks, total] = await this.prisma.$transaction([
-      this.prisma.task.findMany({
-        where,
-        orderBy: {
-          [sortBy]: sortOrder,
-        },
-        skip: (page - 1) * limit,
-        take: limit,
-        include: taskRelations,
-      }),
+    const tasks = await this.prisma.task.findMany({
+      where,
+      orderBy: {
+        [sortBy]: sortOrder,
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+      include: taskRelations,
+    });
 
-      this.prisma.task.count({
-        where,
-      }),
-    ]);
+    const total = await this.prisma.task.count({
+      where,
+    });
 
     const mappedTasks = tasks.map(mapTask);
 
@@ -297,11 +354,12 @@ export class TasksService {
         description: dto.description,
         issueType: dto.issueType,
         priority: dto.priority,
-        dueDate: dto.dueDate
-          ? new Date(dto.dueDate)
-          : dto.dueDate === undefined
-            ? undefined
-            : null,
+        dueDate:
+          dto.dueDate !== undefined
+            ? dto.dueDate
+              ? new Date(dto.dueDate)
+              : null
+            : undefined,
         assigneeId: dto.assigneeId,
       },
       include: taskRelations,

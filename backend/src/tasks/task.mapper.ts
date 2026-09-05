@@ -30,6 +30,22 @@ export const taskRelations = {
       email: true,
     },
   },
+
+  labels: {
+    select: {
+      label: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      label: {
+        name: 'asc',
+      },
+    },
+  },
 } satisfies Prisma.TaskInclude;
 
 export type TaskWithRelations = Prisma.TaskGetPayload<{
@@ -39,6 +55,8 @@ export type TaskWithRelations = Prisma.TaskGetPayload<{
 export function mapTask(task: TaskWithRelations) {
   return {
     ...task,
+
+    labels: task.labels.map((taskLabel) => taskLabel.label),
 
     issueKey:
       task.project && task.issueNumber
