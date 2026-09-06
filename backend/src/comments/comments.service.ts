@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { ProjectRole } from '@prisma/client';
+import { ActivityType, Prisma, ProjectRole } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -56,26 +56,42 @@ export class CommentsService {
   async create(userId: number, taskId: number, dto: CreateCommentDto) {
     await this.getTaskForProjectMember(userId, taskId);
 
-    return this.prisma.comment.create({
-      data: {
-        content: dto.content,
-        taskId,
-        userId,
-      },
-      select: {
-        id: true,
-        content: true,
-        createdAt: true,
-        updatedAt: true,
-        taskId: true,
-        userId: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
+    return this.prisma.$transaction(async (tx) => {
+      const comment = await tx.comment.create({
+        data: {
+          content: dto.content,
+          taskId,
+          userId,
+        },
+        select: {
+          id: true,
+          content: true,
+          createdAt: true,
+          updatedAt: true,
+          taskId: true,
+          userId: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+            },
           },
         },
-      },
+      });
+
+      await tx.activity.create({
+        data: {
+          taskId,
+          userId,
+          type: ActivityType.COMMENT_ADDED,
+          message: 'Comment added',
+          metadata: {
+            commentId: comment.id,
+          },
+        },
+      });
+
+      return comment;
     });
   }
 
@@ -133,27 +149,43 @@ export class CommentsService {
       throw new ForbiddenException('Only comment author can edit the comment');
     }
 
-    return this.prisma.comment.update({
-      where: {
-        id: commentId,
-      },
-      data: {
-        content: dto.content,
-      },
-      select: {
-        id: true,
-        content: true,
-        createdAt: true,
-        updatedAt: true,
-        taskId: true,
-        userId: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
+    return this.prisma.$transaction(async (tx) => {
+      const updatedComment = await tx.comment.update({
+        where: {
+          id: commentId,
+        },
+        data: {
+          content: dto.content,
+        },
+        select: {
+          id: true,
+          content: true,
+          createdAt: true,
+          updatedAt: true,
+          taskId: true,
+          userId: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+            },
           },
         },
-      },
+      });
+
+      await tx.activity.create({
+        data: {
+          taskId,
+          userId,
+          type: ActivityType.COMMENT_UPDATED,
+          message: 'Comment updated',
+          metadata: {
+            commentId: comment.id,
+          },
+        },
+      });
+
+      return updatedComment;
     });
   }
 
@@ -186,14 +218,28 @@ export class CommentsService {
       );
     }
 
-    await this.prisma.comment.delete({
-      where: {
-        id: commentId,
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.comment.delete({
+        where: {
+          id: commentId,
+        },
+      });
 
-    return {
-      message: 'Comment deleted successfully',
-    };
+      await tx.activity.create({
+        data: {
+          taskId,
+          userId,
+          type: ActivityType.COMMENT_DELETED,
+          message: 'Comment deleted',
+          metadata: {
+            commentId: comment.id,
+          },
+        },
+      });
+
+      return {
+        message: 'Comment deleted successfully',
+      };
+    });
   }
 }

@@ -1,17 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { Prisma } from '@prisma/client';
+import { ActivityType, Prisma } from '@prisma/client';
 
+import { ActivitiesService } from '../activities/activities.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskDto } from './dto/update-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { SortOrder, TaskQueryDto, TaskSortBy } from './dto/task-query.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
 import { mapTask, taskRelations } from './task.mapper';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activitiesService: ActivitiesService,
+  ) {}
 
   private async ensureProjectMember(userId: number, projectId: number) {
     const member = await this.prisma.projectMember.findFirst({
@@ -61,18 +65,21 @@ export class TasksService {
       await this.ensureProjectMember(dto.assigneeId, dto.projectId);
     }
 
-    const lastTask = await this.prisma.task.findFirst({
-      where: {
-        columnId: dto.columnId,
-      },
-      orderBy: {
-        position: 'desc',
-      },
-    });
-
-    const position = lastTask ? lastTask.position + 1000 : 1000;
-
     const task = await this.prisma.$transaction(async (tx) => {
+      const lastTask = await tx.task.findFirst({
+        where: {
+          columnId: dto.columnId,
+        },
+        orderBy: {
+          position: 'desc',
+        },
+        select: {
+          position: true,
+        },
+      });
+
+      const position = lastTask ? lastTask.position + 1000 : 1000;
+
       const updatedProject = await tx.project.update({
         where: {
           id: dto.projectId,
@@ -87,7 +94,7 @@ export class TasksService {
         },
       });
 
-      return tx.task.create({
+      const createdTask = await tx.task.create({
         data: {
           title: dto.title,
           description: dto.description,
@@ -95,10 +102,8 @@ export class TasksService {
           issueType: dto.issueType,
           priority: dto.priority,
           dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
-
           reporterId: userId,
           assigneeId: dto.assigneeId,
-
           projectId: dto.projectId,
           columnId: dto.columnId,
           position,
@@ -106,6 +111,16 @@ export class TasksService {
         },
         include: taskRelations,
       });
+
+      await this.activitiesService.createWithTransaction(
+        tx,
+        createdTask.id,
+        userId,
+        ActivityType.TASK_CREATED,
+        `Task ${createdTask.project?.key ?? ''}-${createdTask.issueNumber} created`,
+      );
+
+      return createdTask;
     });
 
     return mapTask(task);
@@ -115,6 +130,14 @@ export class TasksService {
     const task = await this.prisma.task.findUnique({
       where: {
         id: taskId,
+      },
+      include: {
+        column: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -128,28 +151,50 @@ export class TasksService {
 
     await this.ensureProjectMember(userId, task.projectId);
 
-    const column = await this.prisma.boardColumn.findFirst({
+    const newColumn = await this.prisma.boardColumn.findFirst({
       where: {
         id: dto.columnId,
         board: {
           projectId: task.projectId,
         },
       },
+      select: {
+        id: true,
+        name: true,
+      },
     });
 
-    if (!column) {
+    if (!newColumn) {
       throw new NotFoundException('Column not found in task project');
     }
 
-    const updatedTask = await this.prisma.task.update({
-      where: {
-        id: taskId,
-      },
-      data: {
-        columnId: dto.columnId,
-        position: dto.position,
-      },
-      include: taskRelations,
+    const updatedTask = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          columnId: dto.columnId,
+          position: dto.position,
+        },
+        include: taskRelations,
+      });
+
+      if (task.columnId !== dto.columnId) {
+        await this.activitiesService.createWithTransaction(
+          tx,
+          taskId,
+          userId,
+          ActivityType.TASK_MOVED,
+          `Task moved from "${task.column?.name ?? 'Unknown'}" to "${newColumn.name}"`,
+          {
+            fromColumnId: task.columnId,
+            toColumnId: dto.columnId,
+          },
+        );
+      }
+
+      return result;
     });
 
     return mapTask(updatedTask);
@@ -345,24 +390,135 @@ export class TasksService {
       await this.ensureProjectMember(dto.assigneeId, existingTask.projectId);
     }
 
-    const task = await this.prisma.task.update({
-      where: {
-        id: taskId,
-      },
-      data: {
-        title: dto.title,
-        description: dto.description,
-        issueType: dto.issueType,
-        priority: dto.priority,
-        dueDate:
-          dto.dueDate !== undefined
-            ? dto.dueDate
-              ? new Date(dto.dueDate)
-              : null
-            : undefined,
-        assigneeId: dto.assigneeId,
-      },
-      include: taskRelations,
+    const titleChanged =
+      dto.title !== undefined && dto.title !== existingTask.title;
+
+    const descriptionChanged =
+      dto.description !== undefined &&
+      dto.description !== existingTask.description;
+
+    const dueDateChanged =
+      dto.dueDate !== undefined &&
+      (dto.dueDate === null ||
+        new Date(dto.dueDate).getTime() !== existingTask.dueDate?.getTime());
+
+    const priorityChanged =
+      dto.priority !== undefined && dto.priority !== existingTask.priority;
+
+    const issueTypeChanged =
+      dto.issueType !== undefined && dto.issueType !== existingTask.issueType;
+
+    const assigneeChanged =
+      dto.assigneeId !== undefined &&
+      dto.assigneeId !== existingTask.assigneeId;
+
+    const task = await this.prisma.$transaction(async (tx) => {
+      const updatedTask = await tx.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          title: dto.title,
+          description:
+            dto.description !== undefined ? dto.description : undefined,
+          issueType: dto.issueType,
+          priority: dto.priority,
+          dueDate:
+            dto.dueDate !== undefined
+              ? dto.dueDate
+                ? new Date(dto.dueDate)
+                : null
+              : undefined,
+          assigneeId: dto.assigneeId,
+        },
+        include: taskRelations,
+      });
+
+      if (titleChanged) {
+        await this.activitiesService.createWithTransaction(
+          tx,
+          taskId,
+          userId,
+          ActivityType.TITLE_CHANGED,
+          'Title changed',
+          {
+            from: existingTask.title,
+            to: dto.title,
+          },
+        );
+      }
+
+      if (descriptionChanged) {
+        await this.activitiesService.createWithTransaction(
+          tx,
+          taskId,
+          userId,
+          ActivityType.DESCRIPTION_CHANGED,
+          'Description changed',
+          {
+            from: existingTask.description,
+            to: dto.description,
+          },
+        );
+      }
+
+      if (dueDateChanged) {
+        await this.activitiesService.createWithTransaction(
+          tx,
+          taskId,
+          userId,
+          ActivityType.DUE_DATE_CHANGED,
+          'Due date changed',
+          {
+            from: existingTask.dueDate?.toISOString() ?? null,
+            to: dto.dueDate ? new Date(dto.dueDate).toISOString() : null,
+          },
+        );
+      }
+
+      if (priorityChanged) {
+        await this.activitiesService.createWithTransaction(
+          tx,
+          taskId,
+          userId,
+          ActivityType.PRIORITY_CHANGED,
+          `Priority changed from ${existingTask.priority} to ${dto.priority}`,
+          {
+            from: existingTask.priority,
+            to: dto.priority,
+          },
+        );
+      }
+
+      if (issueTypeChanged) {
+        await this.activitiesService.createWithTransaction(
+          tx,
+          taskId,
+          userId,
+          ActivityType.ISSUE_TYPE_CHANGED,
+          `Issue type changed from ${existingTask.issueType} to ${dto.issueType}`,
+          {
+            from: existingTask.issueType,
+            to: dto.issueType,
+          },
+        );
+      }
+
+      if (assigneeChanged) {
+        await this.activitiesService.createWithTransaction(
+          tx,
+          taskId,
+          userId,
+          ActivityType.ASSIGNEE_CHANGED,
+          'Assignee changed',
+          {
+            from: existingTask.assigneeId,
+            to: dto.assigneeId ?? null,
+          },
+        );
+      }
+
+      return updatedTask;
     });
 
     return mapTask(task);

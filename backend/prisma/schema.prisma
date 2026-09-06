@@ -28,7 +28,8 @@ model User {
   reportedTasks Task[] @relation("TaskReporter")
   assignedTasks Task[] @relation("TaskAssignee")
 
-  comments Comment[]
+  comments   Comment[]
+  activities Activity[]
 }
 
 model Project {
@@ -126,8 +127,9 @@ model Task {
   columnId Int?
   column   BoardColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
 
-  comments Comment[]
-  labels   TaskLabel[]
+  comments   Comment[]
+  labels     TaskLabel[]
+  activities Activity[]
 
   @@unique([projectId, issueNumber])
   @@index([userId])
@@ -177,6 +179,39 @@ model TaskLabel {
 
   @@id([taskId, labelId])
   @@index([labelId])
+}
+
+model Activity {
+  id        Int          @id @default(autoincrement())
+  type      ActivityType
+  message   String
+  metadata  Json?
+  createdAt DateTime     @default(now())
+
+  taskId Int
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@index([userId, createdAt])
+}
+
+enum ActivityType {
+  TASK_CREATED
+  TASK_MOVED
+  TITLE_CHANGED
+  DESCRIPTION_CHANGED
+  DUE_DATE_CHANGED
+  ASSIGNEE_CHANGED
+  PRIORITY_CHANGED
+  ISSUE_TYPE_CHANGED
+  COMMENT_ADDED
+  COMMENT_UPDATED
+  COMMENT_DELETED
+  LABEL_ADDED
+  LABEL_REMOVED
 }
 
 enum ProjectRole {

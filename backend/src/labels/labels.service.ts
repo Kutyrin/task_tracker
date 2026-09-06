@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { ProjectRole } from '@prisma/client';
+import { ActivityType, ProjectRole } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLabelDto } from './dto/create-label.dto';
@@ -43,6 +43,33 @@ export class LabelsService {
     }
 
     return member;
+  }
+
+  private async getTaskForProjectMember(userId: number, taskId: number) {
+    const task = await this.prisma.task.findUnique({
+      where: {
+        id: taskId,
+      },
+      select: {
+        id: true,
+        projectId: true,
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    if (!task.projectId) {
+      throw new NotFoundException('Task is not assigned to a project');
+    }
+
+    const member = await this.getProjectMember(userId, task.projectId);
+
+    return {
+      task,
+      role: member.role,
+    };
   }
 
   async findAll(userId: number, projectId: number) {
@@ -176,30 +203,16 @@ export class LabelsService {
   }
 
   async assignToTask(userId: number, taskId: number, labelId: number) {
-    const task = await this.prisma.task.findUnique({
-      where: {
-        id: taskId,
-      },
-      select: {
-        id: true,
-        projectId: true,
-      },
-    });
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    if (!task.projectId) {
-      throw new NotFoundException('Task is not assigned to a project');
-    }
-
-    await this.getProjectMember(userId, task.projectId);
+    const { task } = await this.getTaskForProjectMember(userId, taskId);
 
     const label = await this.prisma.label.findFirst({
       where: {
         id: labelId,
-        projectId: task.projectId,
+        projectId: task.projectId!,
+      },
+      select: {
+        id: true,
+        name: true,
       },
     });
 
@@ -220,11 +233,26 @@ export class LabelsService {
       throw new ConflictException('Label is already assigned to this task');
     }
 
-    await this.prisma.taskLabel.create({
-      data: {
-        taskId,
-        labelId,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.taskLabel.create({
+        data: {
+          taskId,
+          labelId,
+        },
+      });
+
+      await tx.activity.create({
+        data: {
+          taskId,
+          userId,
+          type: ActivityType.LABEL_ADDED,
+          message: `Label "${label.name}" added`,
+          metadata: {
+            labelId: label.id,
+            labelName: label.name,
+          },
+        },
+      });
     });
 
     return {
@@ -233,25 +261,7 @@ export class LabelsService {
   }
 
   async getTaskLabels(userId: number, taskId: number) {
-    const task = await this.prisma.task.findUnique({
-      where: {
-        id: taskId,
-      },
-      select: {
-        id: true,
-        projectId: true,
-      },
-    });
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    if (!task.projectId) {
-      throw new NotFoundException('Task is not assigned to a project');
-    }
-
-    await this.getProjectMember(userId, task.projectId);
+    await this.getTaskForProjectMember(userId, taskId);
 
     return this.prisma.label.findMany({
       where: {
@@ -261,6 +271,12 @@ export class LabelsService {
           },
         },
       },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        projectId: true,
+      },
       orderBy: {
         name: 'asc',
       },
@@ -268,25 +284,7 @@ export class LabelsService {
   }
 
   async removeFromTask(userId: number, taskId: number, labelId: number) {
-    const task = await this.prisma.task.findUnique({
-      where: {
-        id: taskId,
-      },
-      select: {
-        id: true,
-        projectId: true,
-      },
-    });
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    if (!task.projectId) {
-      throw new NotFoundException('Task is not assigned to a project');
-    }
-
-    await this.getProjectMember(userId, task.projectId);
+    await this.getTaskForProjectMember(userId, taskId);
 
     const relation = await this.prisma.taskLabel.findUnique({
       where: {
@@ -295,19 +293,42 @@ export class LabelsService {
           labelId,
         },
       },
+      include: {
+        label: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
 
     if (!relation) {
       throw new NotFoundException('Label is not assigned to this task');
     }
 
-    await this.prisma.taskLabel.delete({
-      where: {
-        taskId_labelId: {
-          taskId,
-          labelId,
+    await this.prisma.$transaction(async (tx) => {
+      await tx.taskLabel.delete({
+        where: {
+          taskId_labelId: {
+            taskId,
+            labelId,
+          },
         },
-      },
+      });
+
+      await tx.activity.create({
+        data: {
+          taskId,
+          userId,
+          type: ActivityType.LABEL_REMOVED,
+          message: `Label "${relation.label.name}" removed`,
+          metadata: {
+            labelId: relation.label.id,
+            labelName: relation.label.name,
+          },
+        },
+      });
     });
 
     return {

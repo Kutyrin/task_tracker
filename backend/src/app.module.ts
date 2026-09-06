@@ -10,6 +10,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { BoardsModule } from './boards/boards.module';
 import { CommentsModule } from './comments/comments.module';
 import { LabelsModule } from './labels/labels.module';
+import { ActivitiesModule } from './activities/activities.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { LabelsModule } from './labels/labels.module';
     BoardsModule,
     CommentsModule,
     LabelsModule,
+    ActivitiesModule,
   ],
   controllers: [AppController, HealthController],
 })
