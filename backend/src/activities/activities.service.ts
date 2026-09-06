@@ -4,80 +4,30 @@ import { ActivityType, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 
+const activitySelect = {
+  id: true,
+  type: true,
+  message: true,
+  metadata: true,
+  createdAt: true,
+  user: {
+    select: {
+      id: true,
+      email: true,
+    },
+  },
+} satisfies Prisma.ActivitySelect;
+
 @Injectable()
 export class ActivitiesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(
-    taskId: number,
-    userId: number,
-    type: ActivityType,
-    message: string,
-    metadata?: Prisma.InputJsonValue,
-  ) {
-    return this.prisma.activity.create({
-      data: {
-        taskId,
-        userId,
-        type,
-        message,
-        metadata,
-      },
-      select: {
-        id: true,
-        type: true,
-        message: true,
-        metadata: true,
-        createdAt: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
-          },
-        },
-      },
-    });
-  }
-
-  async createWithTransaction(
-    tx: Prisma.TransactionClient,
-    taskId: number,
-    userId: number,
-    type: ActivityType,
-    message: string,
-    metadata?: Prisma.InputJsonValue,
-  ) {
-    return tx.activity.create({
-      data: {
-        taskId,
-        userId,
-        type,
-        message,
-        metadata,
-      },
-      select: {
-        id: true,
-        type: true,
-        message: true,
-        metadata: true,
-        createdAt: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
-          },
-        },
-      },
-    });
-  }
-
-  async findAll(userId: number, taskId: number) {
+  private async ensureTaskMember(userId: number, taskId: number) {
     const task = await this.prisma.task.findUnique({
       where: {
         id: taskId,
       },
       select: {
-        id: true,
         projectId: true,
       },
     });
@@ -101,23 +51,56 @@ export class ActivitiesService {
       throw new NotFoundException('Project not found');
     }
 
+    return task;
+  }
+
+  async create(
+    taskId: number,
+    userId: number,
+    type: ActivityType,
+    message: string,
+    metadata?: Prisma.InputJsonValue,
+  ) {
+    return this.prisma.activity.create({
+      data: {
+        taskId,
+        userId,
+        type,
+        message,
+        metadata,
+      },
+      select: activitySelect,
+    });
+  }
+
+  async createWithTransaction(
+    tx: Prisma.TransactionClient,
+    taskId: number,
+    userId: number,
+    type: ActivityType,
+    message: string,
+    metadata?: Prisma.InputJsonValue,
+  ) {
+    return tx.activity.create({
+      data: {
+        taskId,
+        userId,
+        type,
+        message,
+        metadata,
+      },
+      select: activitySelect,
+    });
+  }
+
+  async findAll(userId: number, taskId: number) {
+    await this.ensureTaskMember(userId, taskId);
+
     return this.prisma.activity.findMany({
       where: {
         taskId,
       },
-      select: {
-        id: true,
-        type: true,
-        message: true,
-        metadata: true,
-        createdAt: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
-          },
-        },
-      },
+      select: activitySelect,
       orderBy: {
         createdAt: 'desc',
       },
