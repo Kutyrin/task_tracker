@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { ProjectRole } from '@prisma/client';
+import { Prisma, ProjectRole } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { AddProjectMemberDto } from './dto/add-project-member.dto';
@@ -18,40 +18,41 @@ export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: number, dto: CreateProjectDto) {
-    const existingProject = await this.prisma.project.findUnique({
-      where: {
-        key: dto.key,
-      },
-    });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const project = await tx.project.create({
+          data: {
+            name: dto.name,
+            key: dto.key,
+            description: dto.description,
+            ownerId: userId,
+          },
+        });
 
-    if (existingProject) {
-      throw new ConflictException('Project with this key already exists');
+        await tx.projectMember.create({
+          data: {
+            projectId: project.id,
+            userId,
+            role: ProjectRole.OWNER,
+          },
+        });
+
+        return project;
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Project with this key already exists');
+      }
+
+      throw error;
     }
-
-    return this.prisma.$transaction(async (tx) => {
-      const project = await tx.project.create({
-        data: {
-          name: dto.name,
-          key: dto.key,
-          description: dto.description,
-          ownerId: userId,
-        },
-      });
-
-      await tx.projectMember.create({
-        data: {
-          projectId: project.id,
-          userId,
-          role: ProjectRole.OWNER,
-        },
-      });
-
-      return project;
-    });
   }
 
   async findAll(userId: number) {
-    return this.prisma.project.findMany({
+    const projects = await this.prisma.project.findMany({
       where: {
         members: {
           some: {
@@ -60,6 +61,14 @@ export class ProjectsService {
         },
       },
       include: {
+        members: {
+          where: {
+            userId,
+          },
+          select: {
+            role: true,
+          },
+        },
         _count: {
           select: {
             tasks: true,
@@ -71,6 +80,20 @@ export class ProjectsService {
         createdAt: 'desc',
       },
     });
+
+    return {
+      data: projects.map((project) => ({
+        id: project.id,
+        name: project.name,
+        key: project.key,
+        description: project.description,
+        role: project.members[0]?.role ?? null,
+        taskCount: project._count.tasks,
+        memberCount: project._count.members,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+      })),
+    };
   }
 
   async findOne(userId: number, projectId: number) {
@@ -84,6 +107,14 @@ export class ProjectsService {
         },
       },
       include: {
+        members: {
+          where: {
+            userId,
+          },
+          select: {
+            role: true,
+          },
+        },
         _count: {
           select: {
             tasks: true,
@@ -97,7 +128,18 @@ export class ProjectsService {
       throw new NotFoundException('Project not found');
     }
 
-    return project;
+    return {
+      id: project.id,
+      name: project.name,
+      key: project.key,
+      description: project.description,
+      ownerId: project.ownerId,
+      role: project.members[0]?.role ?? null,
+      taskCount: project._count.tasks,
+      memberCount: project._count.members,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+    };
   }
 
   private async getProjectMember(userId: number, projectId: number) {
@@ -115,40 +157,43 @@ export class ProjectsService {
     return member;
   }
 
-  private async requireProjectManager(userId: number, projectId: number) {
+  private async requireManager(
+    userId: number,
+    projectId: number,
+    errorMessage: string,
+  ) {
     const member = await this.getProjectMember(userId, projectId);
 
     if (
       member.role !== ProjectRole.OWNER &&
       member.role !== ProjectRole.ADMIN
     ) {
-      throw new ForbiddenException(
-        'Only project owner or admin can manage project settings',
-      );
+      throw new ForbiddenException(errorMessage);
     }
 
     return member;
   }
 
+  private async requireProjectManager(userId: number, projectId: number) {
+    return this.requireManager(
+      userId,
+      projectId,
+      'Only project owner or admin can manage project settings',
+    );
+  }
+
   private async requireMemberManager(userId: number, projectId: number) {
-    const member = await this.getProjectMember(userId, projectId);
-
-    if (
-      member.role !== ProjectRole.OWNER &&
-      member.role !== ProjectRole.ADMIN
-    ) {
-      throw new ForbiddenException(
-        'Only project owner or admin can manage members',
-      );
-    }
-
-    return member;
+    return this.requireManager(
+      userId,
+      projectId,
+      'Only project owner or admin can manage members',
+    );
   }
 
   async update(userId: number, projectId: number, dto: UpdateProjectDto) {
     await this.requireProjectManager(userId, projectId);
 
-    if (dto.key) {
+    if (dto.key !== undefined) {
       const existingProject = await this.prisma.project.findFirst({
         where: {
           key: dto.key,
@@ -163,31 +208,29 @@ export class ProjectsService {
       }
     }
 
-    return this.prisma.project.update({
-      where: {
-        id: projectId,
-      },
-      data: dto,
-    });
+    try {
+      return await this.prisma.project.update({
+        where: {
+          id: projectId,
+        },
+        data: dto,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Project with this key already exists');
+      }
+
+      throw error;
+    }
   }
 
   async remove(userId: number, projectId: number) {
-    const project = await this.prisma.project.findFirst({
-      where: {
-        id: projectId,
-        members: {
-          some: {
-            userId,
-          },
-        },
-      },
-    });
+    const member = await this.getProjectMember(userId, projectId);
 
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
-
-    if (project.ownerId !== userId) {
+    if (member.role !== ProjectRole.OWNER) {
       throw new ForbiddenException('Only project owner can delete the project');
     }
 
@@ -280,24 +323,35 @@ export class ProjectsService {
       );
     }
 
-    return this.prisma.projectMember.create({
-      data: {
-        projectId,
-        userId: user.id,
-        role: dto.role,
-      },
-      select: {
-        id: true,
-        role: true,
-        createdAt: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
+    try {
+      return await this.prisma.projectMember.create({
+        data: {
+          projectId,
+          userId: user.id,
+          role: dto.role,
+        },
+        select: {
+          id: true,
+          role: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('User is already a project member');
+      }
+
+      throw error;
+    }
   }
 
   async updateMemberRole(
