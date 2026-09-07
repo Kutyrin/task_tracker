@@ -8,7 +8,6 @@ import {
   Max,
   Min,
 } from 'class-validator';
-
 import { IssueType, TaskPriority } from '@prisma/client';
 
 export enum TaskSortBy {
@@ -17,6 +16,7 @@ export enum TaskSortBy {
   DUE_DATE = 'dueDate',
   PRIORITY = 'priority',
   TITLE = 'title',
+  POSITION = 'position',
 }
 
 export enum SortOrder {

@@ -55,24 +55,39 @@ export class TasksService {
           projectId: dto.projectId,
         },
       },
+      select: {
+        id: true,
+      },
     });
 
     if (!column) {
       throw new NotFoundException('Column not found in this project');
     }
 
-    if (dto.assigneeId) {
+    if (dto.assigneeId !== undefined) {
       await this.ensureProjectMember(dto.assigneeId, dto.projectId);
     }
 
     const task = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`
+        SELECT id
+        FROM "BoardColumn"
+        WHERE id = ${dto.columnId}
+        FOR UPDATE
+      `;
+
       const lastTask = await tx.task.findFirst({
         where: {
           columnId: dto.columnId,
         },
-        orderBy: {
-          position: 'desc',
-        },
+        orderBy: [
+          {
+            position: 'desc',
+          },
+          {
+            id: 'desc',
+          },
+        ],
         select: {
           position: true,
         },
@@ -319,11 +334,18 @@ export class TasksService {
         : {}),
     };
 
-    const tasks = await this.prisma.task.findMany({
-      where,
-      orderBy: {
+    const orderBy: Prisma.TaskOrderByWithRelationInput[] = [
+      {
         [sortBy]: sortOrder,
       },
+      {
+        id: SortOrder.ASC,
+      },
+    ];
+
+    const tasks = await this.prisma.task.findMany({
+      where,
+      orderBy,
       skip: (page - 1) * limit,
       take: limit,
       include: taskRelations,
