@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,9 +9,9 @@ import { ProjectRole } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBoardDto } from './dto/create-board.dto';
-import { UpdateBoardDto } from './dto/update-board.dto';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { MoveColumnDto } from './dto/move-column.dto';
+import { UpdateBoardDto } from './dto/update-board.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
 
 @Injectable()
@@ -222,23 +223,28 @@ export class BoardsService {
 
     await this.requireBoardManager(userId, board.projectId);
 
-    const lastColumn = await this.prisma.boardColumn.findFirst({
-      where: {
-        boardId,
-      },
-      orderBy: {
-        position: 'desc',
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const lastColumn = await tx.boardColumn.findFirst({
+        where: {
+          boardId,
+        },
+        orderBy: {
+          position: 'desc',
+        },
+        select: {
+          position: true,
+        },
+      });
 
-    const position = lastColumn ? lastColumn.position + 1000 : 1000;
+      const position = lastColumn ? lastColumn.position + 1000 : 1000;
 
-    return this.prisma.boardColumn.create({
-      data: {
-        name: dto.name,
-        boardId,
-        position,
-      },
+      return tx.boardColumn.create({
+        data: {
+          name: dto.name,
+          boardId,
+          position,
+        },
+      });
     });
   }
 
@@ -332,10 +338,21 @@ export class BoardsService {
         id: columnId,
         boardId,
       },
+      include: {
+        _count: {
+          select: {
+            tasks: true,
+          },
+        },
+      },
     });
 
     if (!column) {
       throw new NotFoundException('Column not found');
+    }
+
+    if (column._count.tasks > 0) {
+      throw new ConflictException('Cannot delete a column containing tasks');
     }
 
     await this.prisma.boardColumn.delete({
