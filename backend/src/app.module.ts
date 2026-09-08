@@ -11,6 +11,7 @@ import { BoardsModule } from './boards/boards.module';
 import { CommentsModule } from './comments/comments.module';
 import { LabelsModule } from './labels/labels.module';
 import { ActivitiesModule } from './activities/activities.module';
+import { AttachmentsModule } from './attachments/attachments.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ActivitiesModule } from './activities/activities.module';
     CommentsModule,
     LabelsModule,
     ActivitiesModule,
+    AttachmentsModule,
   ],
   controllers: [AppController, HealthController],
 })
