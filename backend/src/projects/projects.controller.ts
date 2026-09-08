@@ -44,6 +44,14 @@ export class ProjectsController {
     return this.projectsService.findAll(req.user.userId);
   }
 
+  @Get(':id/stats')
+  getStats(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) projectId: number,
+  ) {
+    return this.projectsService.getStats(req.user.userId, projectId);
+  }
+
   @Get(':id')
   findOne(
     @Req() req: AuthenticatedRequest,

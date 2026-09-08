@@ -245,6 +245,103 @@ export class ProjectsService {
     };
   }
 
+  async getStats(userId: number, projectId: number) {
+    await this.getProjectMember(userId, projectId);
+
+    const [total, byPriority, byIssueType, byColumn, overdue] =
+      await Promise.all([
+        this.prisma.task.count({
+          where: {
+            projectId,
+          },
+        }),
+
+        this.prisma.task.groupBy({
+          by: ['priority'],
+          where: {
+            projectId,
+          },
+          _count: {
+            _all: true,
+          },
+        }),
+
+        this.prisma.task.groupBy({
+          by: ['issueType'],
+          where: {
+            projectId,
+          },
+          _count: {
+            _all: true,
+          },
+        }),
+
+        this.prisma.task.groupBy({
+          by: ['columnId'],
+          where: {
+            projectId,
+          },
+          _count: {
+            _all: true,
+          },
+        }),
+
+        this.prisma.task.count({
+          where: {
+            projectId,
+            dueDate: {
+              lt: new Date(),
+            },
+            column: {
+              name: {
+                not: 'Done',
+              },
+            },
+          },
+        }),
+      ]);
+
+    const columnIds = byColumn
+      .map((item) => item.columnId)
+      .filter((id): id is number => id !== null);
+
+    const columns = await this.prisma.boardColumn.findMany({
+      where: {
+        id: {
+          in: columnIds,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    const columnMap = new Map(
+      columns.map((column) => [column.id, column.name]),
+    );
+
+    return {
+      total,
+      overdue,
+      byPriority: byPriority.map((item) => ({
+        priority: item.priority,
+        count: item._count._all,
+      })),
+      byIssueType: byIssueType.map((item) => ({
+        issueType: item.issueType,
+        count: item._count._all,
+      })),
+      byColumn: byColumn.map((item) => ({
+        columnId: item.columnId,
+        columnName: item.columnId
+          ? (columnMap.get(item.columnId) ?? null)
+          : null,
+        count: item._count._all,
+      })),
+    };
+  }
+
   async getMembers(userId: number, projectId: number) {
     await this.getProjectMember(userId, projectId);
 
