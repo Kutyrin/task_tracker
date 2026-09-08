@@ -248,7 +248,7 @@ export class ProjectsService {
   async getStats(userId: number, projectId: number) {
     await this.getProjectMember(userId, projectId);
 
-    const [total, byPriority, byIssueType, byColumn, overdue] =
+    const [total, byPriority, byIssueType, byColumn, byAssignee, overdue] =
       await Promise.all([
         this.prisma.task.count({
           where: {
@@ -278,6 +278,16 @@ export class ProjectsService {
 
         this.prisma.task.groupBy({
           by: ['columnId'],
+          where: {
+            projectId,
+          },
+          _count: {
+            _all: true,
+          },
+        }),
+
+        this.prisma.task.groupBy({
+          by: ['assigneeId'],
           where: {
             projectId,
           },
@@ -321,6 +331,26 @@ export class ProjectsService {
       columns.map((column) => [column.id, column.name]),
     );
 
+    const assigneeIds = byAssignee
+      .map((item) => item.assigneeId)
+      .filter((id): id is number => id !== null);
+
+    const assignees = await this.prisma.user.findMany({
+      where: {
+        id: {
+          in: assigneeIds,
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+      },
+    });
+
+    const assigneeMap = new Map(
+      assignees.map((assignee) => [assignee.id, assignee.email]),
+    );
+
     return {
       total,
       overdue,
@@ -337,6 +367,13 @@ export class ProjectsService {
         columnName: item.columnId
           ? (columnMap.get(item.columnId) ?? null)
           : null,
+        count: item._count._all,
+      })),
+      byAssignee: byAssignee.map((item) => ({
+        assigneeId: item.assigneeId,
+        assigneeEmail: item.assigneeId
+          ? (assigneeMap.get(item.assigneeId) ?? null)
+          : 'Unassigned',
         count: item._count._all,
       })),
     };
