@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -48,9 +49,28 @@ export class AttachmentsController {
           callback(null, uniqueName);
         },
       }),
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+      },
+      fileFilter: (_req, file, callback) => {
+        const allowedMimeTypes = new Set([
+          'image/jpeg',
+          'image/png',
+          'image/gif',
+          'image/webp',
+          'application/pdf',
+          'text/plain',
+        ]);
+
+        if (!allowedMimeTypes.has(file.mimetype)) {
+          callback(new BadRequestException('Unsupported file type'), false);
+          return;
+        }
+
+        callback(null, true);
+      },
     }),
   )
-  
   upload(
     @Req() req: AuthenticatedRequest,
     @Param('taskId', ParseIntPipe) taskId: number,
