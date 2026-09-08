@@ -106,4 +106,45 @@ export class ActivitiesService {
       },
     });
   }
+
+  async findAllByProject(userId: number, projectId: number) {
+    const member = await this.prisma.projectMember.findFirst({
+      where: {
+        projectId,
+        userId,
+      },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return {
+      data: await this.prisma.activity.findMany({
+        where: {
+          task: {
+            projectId,
+          },
+        },
+        select: {
+          ...activitySelect,
+          task: {
+            select: {
+              id: true,
+              issueNumber: true,
+              title: true,
+              project: {
+                select: {
+                  key: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+    };
+  }
 }

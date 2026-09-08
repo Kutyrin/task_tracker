@@ -18,16 +18,24 @@ interface AuthenticatedRequest {
   };
 }
 
-@Controller('tasks/:taskId/activities')
+@Controller()
 @UseGuards(JwtAuthGuard)
 export class ActivitiesController {
   constructor(private readonly activitiesService: ActivitiesService) {}
 
-  @Get()
-  findAll(
+  @Get('tasks/:taskId/activities')
+  findAllByTask(
     @Req() req: AuthenticatedRequest,
     @Param('taskId', ParseIntPipe) taskId: number,
   ) {
     return this.activitiesService.findAll(req.user.userId, taskId);
+  }
+
+  @Get('projects/:projectId/activities')
+  findAllByProject(
+    @Req() req: AuthenticatedRequest,
+    @Param('projectId', ParseIntPipe) projectId: number,
+  ) {
+    return this.activitiesService.findAllByProject(req.user.userId, projectId);
   }
 }
