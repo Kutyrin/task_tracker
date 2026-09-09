@@ -4,15 +4,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { ActivityType, Prisma, ProjectRole } from '@prisma/client';
+import { ActivityType, ProjectRole } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
 export class CommentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtimeService: RealtimeService,
+  ) {}
 
   private async getTaskForProjectMember(userId: number, taskId: number) {
     const task = await this.prisma.task.findUnique({
@@ -56,7 +60,7 @@ export class CommentsService {
   async create(userId: number, taskId: number, dto: CreateCommentDto) {
     await this.getTaskForProjectMember(userId, taskId);
 
-    return this.prisma.$transaction(async (tx) => {
+    const comment = await this.prisma.$transaction(async (tx) => {
       const comment = await tx.comment.create({
         data: {
           content: dto.content,
@@ -93,6 +97,10 @@ export class CommentsService {
 
       return comment;
     });
+
+    this.realtimeService.emitToTask(taskId, 'comment.created', comment);
+
+    return comment;
   }
 
   async findAll(userId: number, taskId: number) {
@@ -149,7 +157,7 @@ export class CommentsService {
       throw new ForbiddenException('Only comment author can edit the comment');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const updatedComment = await this.prisma.$transaction(async (tx) => {
       const updatedComment = await tx.comment.update({
         where: {
           id: commentId,
@@ -187,6 +195,10 @@ export class CommentsService {
 
       return updatedComment;
     });
+
+    this.realtimeService.emitToTask(taskId, 'comment.updated', updatedComment);
+
+    return updatedComment;
   }
 
   async remove(userId: number, taskId: number, commentId: number) {
@@ -218,7 +230,7 @@ export class CommentsService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx) => {
       await tx.comment.delete({
         where: {
           id: commentId,
@@ -236,10 +248,14 @@ export class CommentsService {
           },
         },
       });
-
-      return {
-        message: 'Comment deleted successfully',
-      };
     });
+
+    this.realtimeService.emitToTask(taskId, 'comment.deleted', {
+      commentId,
+    });
+
+    return {
+      message: 'Comment deleted successfully',
+    };
   }
 }

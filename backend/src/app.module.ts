@@ -14,6 +14,7 @@ import { CommentsModule } from './comments/comments.module';
 import { LabelsModule } from './labels/labels.module';
 import { ActivitiesModule } from './activities/activities.module';
 import { AttachmentsModule } from './attachments/attachments.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { AttachmentsModule } from './attachments/attachments.module';
     LabelsModule,
     ActivitiesModule,
     AttachmentsModule,
+    RealtimeModule,
   ],
   controllers: [AppController, HealthController],
 })

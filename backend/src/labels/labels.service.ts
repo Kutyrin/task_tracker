@@ -10,10 +10,14 @@ import { ActivityType, ProjectRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLabelDto } from './dto/create-label.dto';
 import { UpdateLabelDto } from './dto/update-label.dto';
+import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
 export class LabelsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtimeService: RealtimeService,
+  ) {}
 
   private async getProjectMember(userId: number, projectId: number) {
     const member = await this.prisma.projectMember.findFirst({
@@ -255,6 +259,12 @@ export class LabelsService {
       });
     });
 
+    this.realtimeService.emitToTask(taskId, 'label.added', {
+      id: label.id,
+      name: label.name,
+      taskId,
+    });
+
     return {
       message: 'Label assigned successfully',
     };
@@ -329,6 +339,12 @@ export class LabelsService {
           },
         },
       });
+    });
+
+    this.realtimeService.emitToTask(taskId, 'label.removed', {
+      id: relation.label.id,
+      name: relation.label.name,
+      taskId,
     });
 
     return {

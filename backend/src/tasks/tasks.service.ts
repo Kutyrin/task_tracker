@@ -9,12 +9,14 @@ import { MoveTaskDto } from './dto/move-task.dto';
 import { SortOrder, TaskQueryDto, TaskSortBy } from './dto/task-query.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { mapTask, taskRelations } from './task.mapper';
+import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
 export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activitiesService: ActivitiesService,
+    private readonly realtimeService: RealtimeService,
   ) {}
 
   private async ensureProjectMember(userId: number, projectId: number) {
@@ -138,7 +140,15 @@ export class TasksService {
       return createdTask;
     });
 
-    return mapTask(task);
+    const mappedTask = mapTask(task);
+
+    this.realtimeService.emitToProject(
+      task.projectId!,
+      'task.created',
+      mappedTask,
+    );
+
+    return mappedTask;
   }
 
   async move(userId: number, taskId: number, dto: MoveTaskDto) {
@@ -212,7 +222,15 @@ export class TasksService {
       return result;
     });
 
-    return mapTask(updatedTask);
+    const mappedTask = mapTask(updatedTask);
+
+    this.realtimeService.emitToProject(
+      updatedTask.projectId!,
+      'task.moved',
+      mappedTask,
+    );
+
+    return mappedTask;
   }
 
   async findAll(userId: number, query: TaskQueryDto) {
@@ -543,16 +561,28 @@ export class TasksService {
       return updatedTask;
     });
 
-    return mapTask(task);
+    const mappedTask = mapTask(task);
+
+    this.realtimeService.emitToProject(
+      task.projectId!,
+      'task.updated',
+      mappedTask,
+    );
+
+    return mappedTask;
   }
 
   async remove(userId: number, taskId: number) {
-    await this.findOne(userId, taskId);
+    const task = await this.findOne(userId, taskId);
 
     await this.prisma.task.delete({
       where: {
         id: taskId,
       },
+    });
+
+    this.realtimeService.emitToProject(task.projectId!, 'task.deleted', {
+      taskId,
     });
 
     return {

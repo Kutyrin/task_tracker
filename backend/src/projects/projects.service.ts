@@ -7,15 +7,20 @@ import {
 
 import { Prisma, ProjectRole } from '@prisma/client';
 
+import { RealtimeService } from '../realtime/realtime.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddProjectMemberDto } from './dto/add-project-member.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectMemberDto } from './dto/update-project-member.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 
+
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtimeService: RealtimeService,
+  ) {}
 
   async create(userId: number, dto: CreateProjectDto) {
     try {
@@ -458,7 +463,7 @@ export class ProjectsService {
     }
 
     try {
-      return await this.prisma.projectMember.create({
+      const member = await this.prisma.projectMember.create({
         data: {
           projectId,
           userId: user.id,
@@ -476,6 +481,10 @@ export class ProjectsService {
           },
         },
       });
+
+      this.realtimeService.emitToProject(projectId, 'member.added', member);
+
+      return member;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -536,7 +545,7 @@ export class ProjectsService {
       );
     }
 
-    return this.prisma.projectMember.update({
+    const updatedMember = await this.prisma.projectMember.update({
       where: {
         id: memberId,
       },
@@ -555,6 +564,14 @@ export class ProjectsService {
         },
       },
     });
+
+    this.realtimeService.emitToProject(
+      projectId,
+      'member.role.updated',
+      updatedMember,
+    );
+
+    return updatedMember;
   }
 
   async removeMember(userId: number, projectId: number, memberId: number) {
@@ -592,6 +609,14 @@ export class ProjectsService {
       where: {
         id: memberId,
       },
+    });
+
+    this.realtimeService.emitToProject(projectId, 'member.removed', {
+      memberId,
+    });
+
+    this.realtimeService.emitToUser(member.userId, 'project.access.revoked', {
+      projectId,
     });
 
     return {
