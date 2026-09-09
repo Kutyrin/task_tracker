@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'node:path';
 
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthController } from './health.controller';
@@ -18,6 +20,12 @@ import { AttachmentsModule } from './attachments/attachments.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
+    }),
+
     PrismaModule,
     AuthModule,
     TasksModule,
