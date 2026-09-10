@@ -8,6 +8,7 @@ import { join } from 'node:path';
 
 import { ProjectRole } from '@prisma/client';
 
+import { RealtimeService } from '../realtime/realtime.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface UploadedFile {
@@ -19,7 +20,10 @@ interface UploadedFile {
 
 @Injectable()
 export class AttachmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtimeService: RealtimeService,
+  ) {}
 
   private async ensureTaskMember(userId: number, taskId: number) {
     const task = await this.prisma.task.findUnique({
@@ -86,13 +90,13 @@ export class AttachmentsService {
   }
 
   async upload(userId: number, taskId: number, file: UploadedFile) {
-    await this.ensureTaskMember(userId, taskId);
+    const membership = await this.ensureTaskMember(userId, taskId);
 
     if (!file) {
       throw new NotFoundException('File is required');
     }
 
-    return this.prisma.attachment.create({
+    const attachment = await this.prisma.attachment.create({
       data: {
         filename: file.originalname,
         mimeType: file.mimetype,
@@ -116,6 +120,14 @@ export class AttachmentsService {
         },
       },
     });
+
+    this.realtimeService.emitToProject(
+      membership.projectId,
+      'attachment.uploaded',
+      attachment,
+    );
+
+    return attachment;
   }
 
   async remove(userId: number, taskId: number, attachmentId: number) {
@@ -151,6 +163,15 @@ export class AttachmentsService {
         id: attachment.id,
       },
     });
+
+    this.realtimeService.emitToProject(
+      membership.projectId,
+      'attachment.deleted',
+      {
+        id: attachment.id,
+        taskId,
+      },
+    );
 
     const filename = attachment.url.split('/').pop();
 

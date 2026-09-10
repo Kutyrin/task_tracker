@@ -6,10 +6,10 @@ import {
 
 import { ActivityType, ProjectRole } from '@prisma/client';
 
+import { RealtimeService } from '../realtime/realtime.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
-import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
 export class CommentsService {
@@ -26,6 +26,13 @@ export class CommentsService {
       select: {
         id: true,
         projectId: true,
+        issueNumber: true,
+        title: true,
+        project: {
+          select: {
+            key: true,
+          },
+        },
       },
     });
 
@@ -58,9 +65,9 @@ export class CommentsService {
   }
 
   async create(userId: number, taskId: number, dto: CreateCommentDto) {
-    await this.getTaskForProjectMember(userId, taskId);
+    const { task } = await this.getTaskForProjectMember(userId, taskId);
 
-    const comment = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const comment = await tx.comment.create({
         data: {
           content: dto.content,
@@ -83,7 +90,7 @@ export class CommentsService {
         },
       });
 
-      await tx.activity.create({
+      const activity = await tx.activity.create({
         data: {
           taskId,
           userId,
@@ -95,12 +102,29 @@ export class CommentsService {
         },
       });
 
-      return comment;
+      return {
+        comment,
+        activity,
+      };
     });
 
-    this.realtimeService.emitToTask(taskId, 'comment.created', comment);
+    this.realtimeService.emitToTask(taskId, 'comment.created', result.comment);
 
-    return comment;
+    this.realtimeService.emitToProject(task.projectId!, 'activity.created', {
+      ...result.activity,
+      task: {
+        id: task.id,
+        issueNumber: task.issueNumber,
+        title: task.title,
+        project: task.project
+          ? {
+              key: task.project.key,
+            }
+          : null,
+      },
+    });
+
+    return result.comment;
   }
 
   async findAll(userId: number, taskId: number) {
@@ -136,7 +160,7 @@ export class CommentsService {
     commentId: number,
     dto: UpdateCommentDto,
   ) {
-    await this.getTaskForProjectMember(userId, taskId);
+    const { task } = await this.getTaskForProjectMember(userId, taskId);
 
     const comment = await this.prisma.comment.findFirst({
       where: {
@@ -157,7 +181,7 @@ export class CommentsService {
       throw new ForbiddenException('Only comment author can edit the comment');
     }
 
-    const updatedComment = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updatedComment = await tx.comment.update({
         where: {
           id: commentId,
@@ -181,7 +205,7 @@ export class CommentsService {
         },
       });
 
-      await tx.activity.create({
+      const activity = await tx.activity.create({
         data: {
           taskId,
           userId,
@@ -193,16 +217,33 @@ export class CommentsService {
         },
       });
 
-      return updatedComment;
+      return {
+        comment: updatedComment,
+        activity,
+      };
     });
 
-    this.realtimeService.emitToTask(taskId, 'comment.updated', updatedComment);
+    this.realtimeService.emitToTask(taskId, 'comment.updated', result.comment);
 
-    return updatedComment;
+    this.realtimeService.emitToProject(task.projectId!, 'activity.created', {
+      ...result.activity,
+      task: {
+        id: task.id,
+        issueNumber: task.issueNumber,
+        title: task.title,
+        project: task.project
+          ? {
+              key: task.project.key,
+            }
+          : null,
+      },
+    });
+
+    return result.comment;
   }
 
   async remove(userId: number, taskId: number, commentId: number) {
-    const { role } = await this.getTaskForProjectMember(userId, taskId);
+    const { task, role } = await this.getTaskForProjectMember(userId, taskId);
 
     const comment = await this.prisma.comment.findFirst({
       where: {
@@ -230,14 +271,14 @@ export class CommentsService {
       );
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    const activity = await this.prisma.$transaction(async (tx) => {
       await tx.comment.delete({
         where: {
           id: commentId,
         },
       });
 
-      await tx.activity.create({
+      return tx.activity.create({
         data: {
           taskId,
           userId,
@@ -252,6 +293,20 @@ export class CommentsService {
 
     this.realtimeService.emitToTask(taskId, 'comment.deleted', {
       commentId,
+    });
+
+    this.realtimeService.emitToProject(task.projectId!, 'activity.created', {
+      ...activity,
+      task: {
+        id: task.id,
+        issueNumber: task.issueNumber,
+        title: task.title,
+        project: task.project
+          ? {
+              key: task.project.key,
+            }
+          : null,
+      },
     });
 
     return {

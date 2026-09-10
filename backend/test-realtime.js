@@ -16,15 +16,9 @@ const socket = io('http://localhost:3001', {
 socket.on('connect', () => {
   console.log('Connected:', socket.id);
 
-  socket.emit('ping', 'hello');
-
   socket.emit('join-project', 1);
 
   socket.emit('join-task', 7);
-});
-
-socket.on('pong', (message) => {
-  console.log('pong event:', message);
 });
 
 socket.on('joined-project', (data) => {
@@ -71,6 +65,18 @@ socket.on('label.removed', (label) => {
   console.log('label.removed:', label);
 });
 
+socket.on('label.created', (label) => {
+  console.log('label.created:', label);
+});
+
+socket.on('label.updated', (label) => {
+  console.log('label.updated:', label);
+});
+
+socket.on('label.deleted', (data) => {
+  console.log('label.deleted:', data);
+});
+
 socket.on('member.added', (member) => {
   console.log('member.added:', member);
 });
@@ -85,6 +91,58 @@ socket.on('member.removed', (data) => {
 
 socket.on('project.access.revoked', (data) => {
   console.log('project.access.revoked:', data);
+});
+
+socket.on('board.created', (board) => {
+  console.log('board.created:', board);
+});
+
+socket.on('board.updated', (board) => {
+  console.log('board.updated:', board);
+});
+
+socket.on('board.deleted', (data) => {
+  console.log('board.deleted:', data);
+});
+
+socket.on('column.created', (column) => {
+  console.log('column.created:', column);
+});
+
+socket.on('column.updated', (column) => {
+  console.log('column.updated:', column);
+});
+
+socket.on('column.reordered', (column) => {
+  console.log('column.reordered:', column);
+});
+
+socket.on('column.deleted', (data) => {
+  console.log('column.deleted:', data);
+});
+
+socket.on('attachment.uploaded', (attachment) => {
+  console.log('attachment.uploaded:', attachment);
+});
+
+socket.on('attachment.deleted', (data) => {
+  console.log('attachment.deleted:', data);
+});
+
+socket.on('project.created', (project) => {
+  console.log('project.created:', project);
+});
+
+socket.on('project.updated', (project) => {
+  console.log('project.updated:', project);
+});
+
+socket.on('project.deleted', (data) => {
+  console.log('project.deleted:', data);
+});
+
+socket.on('activity.created', (activity) => {
+  console.log('activity.created:', activity);
 });
 
 socket.on('exception', (error) => {

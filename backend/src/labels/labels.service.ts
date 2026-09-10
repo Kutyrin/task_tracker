@@ -8,9 +8,9 @@ import {
 import { ActivityType, ProjectRole } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { CreateLabelDto } from './dto/create-label.dto';
 import { UpdateLabelDto } from './dto/update-label.dto';
-import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
 export class LabelsService {
@@ -57,6 +57,13 @@ export class LabelsService {
       select: {
         id: true,
         projectId: true,
+        issueNumber: true,
+        title: true,
+        project: {
+          select: {
+            key: true,
+          },
+        },
       },
     });
 
@@ -114,7 +121,7 @@ export class LabelsService {
       );
     }
 
-    return this.prisma.label.create({
+    const label = await this.prisma.label.create({
       data: {
         name: dto.name,
         projectId,
@@ -127,6 +134,10 @@ export class LabelsService {
         },
       },
     });
+
+    this.realtimeService.emitToProject(projectId, 'label.created', label);
+
+    return label;
   }
 
   async update(
@@ -164,7 +175,7 @@ export class LabelsService {
       );
     }
 
-    return this.prisma.label.update({
+    const updatedLabel = await this.prisma.label.update({
       where: {
         id: labelId,
       },
@@ -179,6 +190,14 @@ export class LabelsService {
         },
       },
     });
+
+    this.realtimeService.emitToProject(
+      projectId,
+      'label.updated',
+      updatedLabel,
+    );
+
+    return updatedLabel;
   }
 
   async remove(userId: number, projectId: number, labelId: number) {
@@ -199,6 +218,11 @@ export class LabelsService {
       where: {
         id: labelId,
       },
+    });
+
+    this.realtimeService.emitToProject(projectId, 'label.deleted', {
+      id: labelId,
+      projectId,
     });
 
     return {
@@ -237,7 +261,7 @@ export class LabelsService {
       throw new ConflictException('Label is already assigned to this task');
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    const activity = await this.prisma.$transaction(async (tx) => {
       await tx.taskLabel.create({
         data: {
           taskId,
@@ -245,7 +269,7 @@ export class LabelsService {
         },
       });
 
-      await tx.activity.create({
+      return tx.activity.create({
         data: {
           taskId,
           userId,
@@ -263,6 +287,20 @@ export class LabelsService {
       id: label.id,
       name: label.name,
       taskId,
+    });
+
+    this.realtimeService.emitToProject(task.projectId!, 'activity.created', {
+      ...activity,
+      task: {
+        id: task.id,
+        issueNumber: task.issueNumber,
+        title: task.title,
+        project: task.project
+          ? {
+              key: task.project.key,
+            }
+          : null,
+      },
     });
 
     return {
@@ -294,7 +332,7 @@ export class LabelsService {
   }
 
   async removeFromTask(userId: number, taskId: number, labelId: number) {
-    await this.getTaskForProjectMember(userId, taskId);
+    const { task } = await this.getTaskForProjectMember(userId, taskId);
 
     const relation = await this.prisma.taskLabel.findUnique({
       where: {
@@ -317,7 +355,7 @@ export class LabelsService {
       throw new NotFoundException('Label is not assigned to this task');
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    const activity = await this.prisma.$transaction(async (tx) => {
       await tx.taskLabel.delete({
         where: {
           taskId_labelId: {
@@ -327,7 +365,7 @@ export class LabelsService {
         },
       });
 
-      await tx.activity.create({
+      return tx.activity.create({
         data: {
           taskId,
           userId,
@@ -345,6 +383,20 @@ export class LabelsService {
       id: relation.label.id,
       name: relation.label.name,
       taskId,
+    });
+
+    this.realtimeService.emitToProject(task.projectId!, 'activity.created', {
+      ...activity,
+      task: {
+        id: task.id,
+        issueNumber: task.issueNumber,
+        title: task.title,
+        project: task.project
+          ? {
+              key: task.project.key,
+            }
+          : null,
+      },
     });
 
     return {

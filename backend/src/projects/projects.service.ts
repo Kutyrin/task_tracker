@@ -14,7 +14,6 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectMemberDto } from './dto/update-project-member.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 
-
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -24,7 +23,7 @@ export class ProjectsService {
 
   async create(userId: number, dto: CreateProjectDto) {
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const project = await this.prisma.$transaction(async (tx) => {
         const project = await tx.project.create({
           data: {
             name: dto.name,
@@ -44,6 +43,10 @@ export class ProjectsService {
 
         return project;
       });
+
+      this.realtimeService.emitToUser(userId, 'project.created', project);
+
+      return project;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -214,12 +217,20 @@ export class ProjectsService {
     }
 
     try {
-      return await this.prisma.project.update({
+      const updatedProject = await this.prisma.project.update({
         where: {
           id: projectId,
         },
         data: dto,
       });
+
+      this.realtimeService.emitToProject(
+        projectId,
+        'project.updated',
+        updatedProject,
+      );
+
+      return updatedProject;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -243,6 +254,10 @@ export class ProjectsService {
       where: {
         id: projectId,
       },
+    });
+
+    this.realtimeService.emitToProject(projectId, 'project.deleted', {
+      id: projectId,
     });
 
     return {

@@ -70,13 +70,13 @@ export class TasksService {
       await this.ensureProjectMember(dto.assigneeId, dto.projectId);
     }
 
-    const task = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`
-        SELECT id
-        FROM "BoardColumn"
-        WHERE id = ${dto.columnId}
-        FOR UPDATE
-      `;
+      SELECT id
+      FROM "BoardColumn"
+      WHERE id = ${dto.columnId}
+      FOR UPDATE
+    `;
 
       const lastTask = await tx.task.findFirst({
         where: {
@@ -129,7 +129,7 @@ export class TasksService {
         include: taskRelations,
       });
 
-      await this.activitiesService.createWithTransaction(
+      const activity = await this.activitiesService.createWithTransaction(
         tx,
         createdTask.id,
         userId,
@@ -137,15 +137,36 @@ export class TasksService {
         `Task ${createdTask.project?.key ?? ''}-${createdTask.issueNumber} created`,
       );
 
-      return createdTask;
+      return {
+        task: createdTask,
+        activity,
+      };
     });
 
-    const mappedTask = mapTask(task);
+    const mappedTask = mapTask(result.task);
 
     this.realtimeService.emitToProject(
-      task.projectId!,
+      result.task.projectId!,
       'task.created',
       mappedTask,
+    );
+
+    this.realtimeService.emitToProject(
+      result.task.projectId!,
+      'activity.created',
+      {
+        ...result.activity,
+        task: {
+          id: result.task.id,
+          issueNumber: result.task.issueNumber,
+          title: result.task.title,
+          project: result.task.project
+            ? {
+                key: result.task.project.key,
+              }
+            : null,
+        },
+      },
     );
 
     return mappedTask;
@@ -193,8 +214,8 @@ export class TasksService {
       throw new NotFoundException('Column not found in task project');
     }
 
-    const updatedTask = await this.prisma.$transaction(async (tx) => {
-      const result = await tx.task.update({
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updatedTask = await tx.task.update({
         where: {
           id: taskId,
         },
@@ -205,8 +226,10 @@ export class TasksService {
         include: taskRelations,
       });
 
+      let activity = null;
+
       if (task.columnId !== dto.columnId) {
-        await this.activitiesService.createWithTransaction(
+        activity = await this.activitiesService.createWithTransaction(
           tx,
           taskId,
           userId,
@@ -219,16 +242,39 @@ export class TasksService {
         );
       }
 
-      return result;
+      return {
+        task: updatedTask,
+        activity,
+      };
     });
 
-    const mappedTask = mapTask(updatedTask);
+    const mappedTask = mapTask(result.task);
 
     this.realtimeService.emitToProject(
-      updatedTask.projectId!,
+      result.task.projectId!,
       'task.moved',
       mappedTask,
     );
+
+    if (result.activity) {
+      this.realtimeService.emitToProject(
+        result.task.projectId!,
+        'activity.created',
+        {
+          ...result.activity,
+          task: {
+            id: result.task.id,
+            issueNumber: result.task.issueNumber,
+            title: result.task.title,
+            project: result.task.project
+              ? {
+                  key: result.task.project.key,
+                }
+              : null,
+          },
+        },
+      );
+    }
 
     return mappedTask;
   }
@@ -452,7 +498,7 @@ export class TasksService {
       dto.assigneeId !== undefined &&
       dto.assigneeId !== existingTask.assigneeId;
 
-    const task = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updatedTask = await tx.task.update({
         where: {
           id: taskId,
@@ -474,100 +520,137 @@ export class TasksService {
         include: taskRelations,
       });
 
+      const activities = [];
+
       if (titleChanged) {
-        await this.activitiesService.createWithTransaction(
-          tx,
-          taskId,
-          userId,
-          ActivityType.TITLE_CHANGED,
-          'Title changed',
-          {
-            from: existingTask.title,
-            to: dto.title,
-          },
+        activities.push(
+          await this.activitiesService.createWithTransaction(
+            tx,
+            taskId,
+            userId,
+            ActivityType.TITLE_CHANGED,
+            'Title changed',
+            {
+              from: existingTask.title,
+              to: dto.title,
+            },
+          ),
         );
       }
 
       if (descriptionChanged) {
-        await this.activitiesService.createWithTransaction(
-          tx,
-          taskId,
-          userId,
-          ActivityType.DESCRIPTION_CHANGED,
-          'Description changed',
-          {
-            from: existingTask.description,
-            to: dto.description,
-          },
+        activities.push(
+          await this.activitiesService.createWithTransaction(
+            tx,
+            taskId,
+            userId,
+            ActivityType.DESCRIPTION_CHANGED,
+            'Description changed',
+            {
+              from: existingTask.description,
+              to: dto.description,
+            },
+          ),
         );
       }
 
       if (dueDateChanged) {
-        await this.activitiesService.createWithTransaction(
-          tx,
-          taskId,
-          userId,
-          ActivityType.DUE_DATE_CHANGED,
-          'Due date changed',
-          {
-            from: existingTask.dueDate?.toISOString() ?? null,
-            to: dto.dueDate ? new Date(dto.dueDate).toISOString() : null,
-          },
+        activities.push(
+          await this.activitiesService.createWithTransaction(
+            tx,
+            taskId,
+            userId,
+            ActivityType.DUE_DATE_CHANGED,
+            'Due date changed',
+            {
+              from: existingTask.dueDate?.toISOString() ?? null,
+              to: dto.dueDate ? new Date(dto.dueDate).toISOString() : null,
+            },
+          ),
         );
       }
 
       if (priorityChanged) {
-        await this.activitiesService.createWithTransaction(
-          tx,
-          taskId,
-          userId,
-          ActivityType.PRIORITY_CHANGED,
-          `Priority changed from ${existingTask.priority} to ${dto.priority}`,
-          {
-            from: existingTask.priority,
-            to: dto.priority,
-          },
+        activities.push(
+          await this.activitiesService.createWithTransaction(
+            tx,
+            taskId,
+            userId,
+            ActivityType.PRIORITY_CHANGED,
+            `Priority changed from ${existingTask.priority} to ${dto.priority}`,
+            {
+              from: existingTask.priority,
+              to: dto.priority,
+            },
+          ),
         );
       }
 
       if (issueTypeChanged) {
-        await this.activitiesService.createWithTransaction(
-          tx,
-          taskId,
-          userId,
-          ActivityType.ISSUE_TYPE_CHANGED,
-          `Issue type changed from ${existingTask.issueType} to ${dto.issueType}`,
-          {
-            from: existingTask.issueType,
-            to: dto.issueType,
-          },
+        activities.push(
+          await this.activitiesService.createWithTransaction(
+            tx,
+            taskId,
+            userId,
+            ActivityType.ISSUE_TYPE_CHANGED,
+            `Issue type changed from ${existingTask.issueType} to ${dto.issueType}`,
+            {
+              from: existingTask.issueType,
+              to: dto.issueType,
+            },
+          ),
         );
       }
 
       if (assigneeChanged) {
-        await this.activitiesService.createWithTransaction(
-          tx,
-          taskId,
-          userId,
-          ActivityType.ASSIGNEE_CHANGED,
-          'Assignee changed',
-          {
-            from: existingTask.assigneeId,
-            to: dto.assigneeId ?? null,
-          },
+        activities.push(
+          await this.activitiesService.createWithTransaction(
+            tx,
+            taskId,
+            userId,
+            ActivityType.ASSIGNEE_CHANGED,
+            'Assignee changed',
+            {
+              from: existingTask.assigneeId,
+              to: dto.assigneeId ?? null,
+            },
+          ),
         );
       }
 
-      return updatedTask;
+      return {
+        task: updatedTask,
+        activities,
+      };
     });
 
-    const mappedTask = mapTask(task);
+    const mappedTask = mapTask(result.task);
 
     this.realtimeService.emitToProject(
-      task.projectId!,
+      result.task.projectId!,
       'task.updated',
       mappedTask,
     );
+
+    for (const activity of result.activities) {
+      this.realtimeService.emitToProject(
+        result.task.projectId!,
+        'activity.created',
+        {
+          ...activity,
+          task: {
+            id: result.task.id,
+            issueNumber: result.task.issueNumber,
+            title: result.task.title,
+            project: result.task.project
+              ? {
+                  key: result.task.project.key,
+                }
+              : null,
+          },
+        },
+      );
+    }
 
     return mappedTask;
   }

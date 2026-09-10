@@ -7,6 +7,7 @@ import {
 
 import { ProjectRole } from '@prisma/client';
 
+import { RealtimeService } from '../realtime/realtime.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { CreateColumnDto } from './dto/create-column.dto';
@@ -16,7 +17,10 @@ import { UpdateColumnDto } from './dto/update-column.dto';
 
 @Injectable()
 export class BoardsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtimeService: RealtimeService,
+  ) {}
 
   private async getProjectMember(userId: number, projectId: number) {
     const member = await this.prisma.projectMember.findFirst({
@@ -72,8 +76,8 @@ export class BoardsService {
   async create(userId: number, dto: CreateBoardDto) {
     await this.requireBoardManager(userId, dto.projectId);
 
-    return this.prisma.$transaction(async (tx) => {
-      const board = await tx.board.create({
+    const board = await this.prisma.$transaction(async (tx) => {
+      const createdBoard = await tx.board.create({
         data: {
           name: dto.name,
           projectId: dto.projectId,
@@ -84,22 +88,22 @@ export class BoardsService {
       await tx.boardColumn.createMany({
         data: [
           {
-            boardId: board.id,
+            boardId: createdBoard.id,
             name: 'Backlog',
             position: 1000,
           },
           {
-            boardId: board.id,
+            boardId: createdBoard.id,
             name: 'To Do',
             position: 2000,
           },
           {
-            boardId: board.id,
+            boardId: createdBoard.id,
             name: 'In Progress',
             position: 3000,
           },
           {
-            boardId: board.id,
+            boardId: createdBoard.id,
             name: 'Done',
             position: 4000,
           },
@@ -108,7 +112,7 @@ export class BoardsService {
 
       return tx.board.findUnique({
         where: {
-          id: board.id,
+          id: createdBoard.id,
         },
         include: {
           columns: {
@@ -119,6 +123,10 @@ export class BoardsService {
         },
       });
     });
+
+    this.realtimeService.emitToProject(dto.projectId, 'board.created', board);
+
+    return board;
   }
 
   async findAll(userId: number) {
@@ -194,12 +202,20 @@ export class BoardsService {
 
     await this.requireBoardManager(userId, board.projectId);
 
-    return this.prisma.board.update({
+    const updatedBoard = await this.prisma.board.update({
       where: {
         id: boardId,
       },
       data: dto,
     });
+
+    this.realtimeService.emitToProject(
+      board.projectId,
+      'board.updated',
+      updatedBoard,
+    );
+
+    return updatedBoard;
   }
 
   async remove(userId: number, boardId: number) {
@@ -213,6 +229,11 @@ export class BoardsService {
       },
     });
 
+    this.realtimeService.emitToProject(board.projectId, 'board.deleted', {
+      id: board.id,
+      projectId: board.projectId,
+    });
+
     return {
       message: 'Board deleted successfully',
     };
@@ -223,7 +244,7 @@ export class BoardsService {
 
     await this.requireBoardManager(userId, board.projectId);
 
-    return this.prisma.$transaction(async (tx) => {
+    const createdColumn = await this.prisma.$transaction(async (tx) => {
       const lastColumn = await tx.boardColumn.findFirst({
         where: {
           boardId,
@@ -246,6 +267,14 @@ export class BoardsService {
         },
       });
     });
+
+    this.realtimeService.emitToProject(
+      board.projectId,
+      'column.created',
+      createdColumn,
+    );
+
+    return createdColumn;
   }
 
   async findColumns(userId: number, boardId: number) {
@@ -289,12 +318,20 @@ export class BoardsService {
       throw new NotFoundException('Column not found');
     }
 
-    return this.prisma.boardColumn.update({
+    const updatedColumn = await this.prisma.boardColumn.update({
       where: {
         id: columnId,
       },
       data: dto,
     });
+
+    this.realtimeService.emitToProject(
+      board.projectId,
+      'column.updated',
+      updatedColumn,
+    );
+
+    return updatedColumn;
   }
 
   async moveColumn(
@@ -318,7 +355,7 @@ export class BoardsService {
       throw new NotFoundException('Column not found');
     }
 
-    return this.prisma.boardColumn.update({
+    const movedColumn = await this.prisma.boardColumn.update({
       where: {
         id: columnId,
       },
@@ -326,6 +363,14 @@ export class BoardsService {
         position: dto.position,
       },
     });
+
+    this.realtimeService.emitToProject(
+      board.projectId,
+      'column.reordered',
+      movedColumn,
+    );
+
+    return movedColumn;
   }
 
   async removeColumn(userId: number, boardId: number, columnId: number) {
@@ -355,11 +400,22 @@ export class BoardsService {
       throw new ConflictException('Cannot delete a column containing tasks');
     }
 
+    const deletedColumn = {
+      id: column.id,
+      boardId: column.boardId,
+    };
+
     await this.prisma.boardColumn.delete({
       where: {
         id: columnId,
       },
     });
+
+    this.realtimeService.emitToProject(
+      board.projectId,
+      'column.deleted',
+      deletedColumn,
+    );
 
     return {
       message: 'Column deleted successfully',
