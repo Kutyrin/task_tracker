@@ -20,6 +20,10 @@
     "rxjs": "^7.8.2",
     "socket.io": "^4.8.3"
   },
+  "overrides": {
+    "multer": "^2.3.0",
+    "deepmerge-ts": "^8.0.1"
+  },
   "allowScripts": {
     "bcrypt@6.0.0": true,
     "prisma@6.19.3": true,
@@ -30,12 +34,15 @@
     "@nestjs/cli": "^12.0.0",
     "@nestjs/testing": "^12.0.1",
     "@types/bcrypt": "^6.0.0",
+    "@types/jest": "^30.0.0",
     "@types/multer": "^2.2.0",
     "@types/node": "^26.4.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.23.1",
+    "jest": "^30.5.1",
     "prisma": "^6.19.3",
     "socket.io-client": "^4.8.3",
+    "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3"
