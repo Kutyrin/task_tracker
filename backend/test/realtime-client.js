@@ -113,8 +113,8 @@ socket.on('column.updated', (column) => {
   console.log('column.updated:', column);
 });
 
-socket.on('column.reordered', (column) => {
-  console.log('column.reordered:', column);
+socket.on('column.moved', (column) => {
+  console.log('column.moved:', column);
 });
 
 socket.on('column.deleted', (data) => {

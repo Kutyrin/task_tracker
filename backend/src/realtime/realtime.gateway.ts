@@ -1,4 +1,4 @@
-import { UseGuards } from '@nestjs/common';
+import { Logger, UseGuards } from '@nestjs/common';
 
 import {
   ConnectedSocket,
@@ -10,12 +10,13 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { Server, Socket } from 'socket.io';
+
+import { PrismaService } from '../prisma/prisma.service';
 import { WsJwtGuard } from './guards/ws-jwt.guard';
 import { RealtimeService } from './realtime.service';
-import { PrismaService } from '../prisma/prisma.service';
 
 @WebSocketGateway({
   cors: {
@@ -26,6 +27,8 @@ import { PrismaService } from '../prisma/prisma.service';
 export class RealtimeGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
+  private readonly logger = new Logger(RealtimeGateway.name);
+
   constructor(
     private readonly realtimeService: RealtimeService,
     private readonly prisma: PrismaService,
@@ -56,7 +59,7 @@ export class RealtimeGateway
 
       client.join(`user:${payload.sub}`);
 
-      console.log(
+      this.logger.log(
         `WebSocket client connected: ${client.id} (user ${payload.sub})`,
       );
     } catch {
@@ -65,8 +68,9 @@ export class RealtimeGateway
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`WebSocket client disconnected: ${client.id}`);
+    this.logger.log(`WebSocket client disconnected: ${client.id}`);
   }
+
   @SubscribeMessage('join-project')
   async handleJoinProject(
     @MessageBody() projectId: number,
@@ -97,6 +101,7 @@ export class RealtimeGateway
       },
     };
   }
+
   @SubscribeMessage('join-task')
   async handleJoinTask(
     @MessageBody() taskId: number,
@@ -145,6 +150,7 @@ export class RealtimeGateway
       },
     };
   }
+
   @WebSocketServer()
   server!: Server;
 

@@ -366,7 +366,7 @@ export class BoardsService {
 
     this.realtimeService.emitToProject(
       board.projectId,
-      'column.reordered',
+      'column.moved',
       movedColumn,
     );
 

@@ -8,6 +8,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 import { IssueType, TaskPriority } from '@prisma/client';
@@ -32,9 +33,10 @@ export class UpdateTaskDto {
   @IsEnum(TaskPriority)
   priority?: TaskPriority;
 
-  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
   @IsDateString()
-  dueDate?: string;
+  @IsOptional()
+  dueDate?: string | null;
 
   @IsOptional()
   @Type(() => Number)

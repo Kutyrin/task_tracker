@@ -3,6 +3,10 @@
         "module": "commonjs",
         "declaration": true,
         "removeComments": true,
+        "types": [
+            "node",
+            "jest"
+        ],
         "emitDecoratorMetadata": true,
         "experimentalDecorators": true,
         "allowSyntheticDefaultImports": true,
