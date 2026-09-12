@@ -1,12 +1,12 @@
-import { INestApplication } from '@nestjs/common';
-import { unlink, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+﻿import { INestApplication } from '@nestjs/common';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import request from 'supertest';
 
 import { createE2EApp } from './setup-e2e';
 
 describe('Attachments e2e', () => {
-  let app: INestApplication;
+  let app: INestApplication | undefined;
 
   let accessToken: string;
   let taskId: number;
@@ -23,6 +23,7 @@ describe('Attachments e2e', () => {
   );
 
   beforeAll(async () => {
+    await mkdir(dirname(fixturePath), { recursive: true });
     await writeFile(fixturePath, 'E2E attachment test');
 
     app = await createE2EApp();
@@ -87,7 +88,9 @@ describe('Attachments e2e', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
 
     try {
       await unlink(fixturePath);
@@ -97,13 +100,13 @@ describe('Attachments e2e', () => {
   });
 
   it('should reject attachment list access without authentication', async () => {
-    await request(app.getHttpServer())
+    await request(app!.getHttpServer())
       .get(`/tasks/${taskId}/attachments`)
       .expect(401);
   });
 
   it('should return an empty attachment list for a task', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app!.getHttpServer())
       .get(`/tasks/${taskId}/attachments`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
@@ -124,7 +127,7 @@ describe('Attachments e2e', () => {
     await writeFile(invalidFilePath, 'invalid file');
 
     try {
-      await request(app.getHttpServer())
+      await request(app!.getHttpServer())
         .post(`/tasks/${taskId}/attachments`)
         .set('Authorization', `Bearer ${accessToken}`)
         .attach('file', invalidFilePath)
@@ -139,7 +142,7 @@ describe('Attachments e2e', () => {
   });
 
   it('should upload an attachment', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app!.getHttpServer())
       .post(`/tasks/${taskId}/attachments`)
       .set('Authorization', `Bearer ${accessToken}`)
       .attach('file', fixturePath)
@@ -163,7 +166,7 @@ describe('Attachments e2e', () => {
   });
 
   it('should return the uploaded attachment', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app!.getHttpServer())
       .get(`/tasks/${taskId}/attachments`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
@@ -183,14 +186,14 @@ describe('Attachments e2e', () => {
   });
 
   it('should reject deleting a nonexistent attachment', async () => {
-    await request(app.getHttpServer())
+    await request(app!.getHttpServer())
       .delete(`/tasks/${taskId}/attachments/999999`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(404);
   });
 
   it('should delete the attachment', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app!.getHttpServer())
       .delete(`/tasks/${taskId}/attachments/${attachmentId}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
@@ -201,7 +204,7 @@ describe('Attachments e2e', () => {
   });
 
   it('should return no attachments after deletion', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app!.getHttpServer())
       .get(`/tasks/${taskId}/attachments`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);

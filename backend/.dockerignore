@@ -1,0 +1,14 @@
+﻿node_modules
+npm-debug.log*
+dist
+coverage
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+test
+*.spec.ts
+*.e2e-spec.ts
+Dockerfile
+docker-compose.yml
