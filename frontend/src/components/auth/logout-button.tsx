@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
+import { useRouter } from 'next/navigation';
 
-import { logout } from "@/lib/auth";
-import { clearStoredTokens } from "@/lib/auth-storage";
-import { clearAuth } from "@/store/auth-slice";
-import { useAppDispatch } from "@/store/hooks";
+import { logout } from '@/lib/auth';
+import { clearStoredTokens } from '@/lib/auth-storage';
+import { clearAuth } from '@/store/auth-slice';
+import { useAppDispatch } from '@/store/hooks';
 
 export function LogoutButton() {
   const router = useRouter();
@@ -17,7 +17,7 @@ export function LogoutButton() {
     } finally {
       clearStoredTokens();
       dispatch(clearAuth());
-      router.replace("/login");
+      router.replace('/login');
     }
   };
 

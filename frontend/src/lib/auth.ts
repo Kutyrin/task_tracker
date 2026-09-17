@@ -1,4 +1,4 @@
-﻿import api from "@/lib/api";
+﻿import api from '@/lib/api';
 
 export interface AuthUser {
   userId: number;
@@ -20,7 +20,7 @@ export async function register(
   email: string,
   password: string,
 ): Promise<RegisterResponse> {
-  const response = await api.post<RegisterResponse>("/auth/register", {
+  const response = await api.post<RegisterResponse>('/auth/register', {
     email,
     password,
   });
@@ -32,7 +32,7 @@ export async function login(
   email: string,
   password: string,
 ): Promise<AuthTokens> {
-  const response = await api.post<AuthTokens>("/auth/login", {
+  const response = await api.post<AuthTokens>('/auth/login', {
     email,
     password,
   });
@@ -41,15 +41,13 @@ export async function login(
 }
 
 export async function getCurrentUser(): Promise<AuthUser> {
-  const response = await api.get<AuthUser>("/auth/me");
+  const response = await api.get<AuthUser>('/auth/me');
 
   return response.data;
 }
 
-export async function refreshTokens(
-  refreshToken: string,
-): Promise<AuthTokens> {
-  const response = await api.post<AuthTokens>("/auth/refresh", {
+export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
+  const response = await api.post<AuthTokens>('/auth/refresh', {
     refreshToken,
   });
 
@@ -57,5 +55,5 @@ export async function refreshTokens(
 }
 
 export async function logout(): Promise<void> {
-  await api.post("/auth/logout");
+  await api.post('/auth/logout');
 }
