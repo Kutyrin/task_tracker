@@ -1,6 +1,6 @@
-﻿import type { AuthTokens } from "@/lib/auth";
+﻿import type { AuthTokens } from '@/lib/auth';
 
-const STORAGE_KEY = "task-tracker-auth";
+const STORAGE_KEY = 'task-tracker-auth';
 
 export function saveTokens(tokens: AuthTokens) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));

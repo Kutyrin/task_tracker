@@ -1,10 +1,10 @@
-﻿import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
+﻿import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
-import { clearStoredTokens, saveTokens } from "@/lib/auth-storage";
-import { store } from "@/store";
-import { clearAuth, setTokens } from "@/store/auth-slice";
+import { clearStoredTokens, saveTokens } from '@/lib/auth-storage';
+import { store } from '@/store';
+import { clearAuth, setTokens } from '@/store/auth-slice';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -27,15 +27,14 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as
-      | (InternalAxiosRequestConfig & { _retry?: boolean })
-      | undefined;
+      (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
 
     if (
       error.response?.status !== 401 ||
       !originalRequest ||
       originalRequest._retry ||
-      originalRequest.url?.includes("/auth/login") ||
-      originalRequest.url?.includes("/auth/refresh")
+      originalRequest.url?.includes('/auth/login') ||
+      originalRequest.url?.includes('/auth/refresh')
     ) {
       return Promise.reject(error);
     }

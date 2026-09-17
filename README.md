@@ -1,6 +1,8 @@
 # Task Tracker
 
-A full-stack issue and project management application inspired by Jira and Kaiten.The backend provides a PostgreSQL-backed API for projects, Kanban boards, issues, comments, labels, activity history, attachments, statistics, and real-time events. The frontend currently implements authentication and a protected dashboard shell; project and board screens are still to be built.
+A full-stack issue and project management application inspired by Jira and Kaiten.
+
+The backend provides a PostgreSQL-backed API for projects, Kanban boards, issues, comments, labels, activity history, attachments, statistics, and real-time events. The frontend currently implements authentication and a protected dashboard shell; project and board screens are still to be built.
 
 ## Current Features
 
@@ -34,16 +36,16 @@ The dashboard is currently a placeholder. Installed dnd-kit and Recharts depende
 
 ## Tech Stack
 
-| Area | Current stack |
-| --- | --- |
-| Runtime | Node.js 24 in Docker and CI, npm |
-| Backend | NestJS 12, TypeScript, Prisma 6.19.3, PostgreSQL 17 |
-| Authentication | JWT, Passport, bcrypt |
-| Uploads and real-time | Multer / local filesystem, Socket.IO 4 |
-| Frontend | Next.js 16.3.3, React 19.2.8, TypeScript, Tailwind CSS 4 |
-| State and forms | Redux Toolkit, TanStack Query, Axios, React Hook Form, Zod |
-| Backend testing | Jest 30, SWC, Nest testing utilities, Supertest |
-| Infrastructure | Docker Compose, backend Dockerfile, GitHub Actions |
+| Area                  | Current stack                                              |
+| --------------------- | ---------------------------------------------------------- |
+| Runtime               | Node.js 24 in Docker and CI, npm                           |
+| Backend               | NestJS 12, TypeScript, Prisma 6.19.3, PostgreSQL 17        |
+| Authentication        | JWT, Passport, bcrypt                                      |
+| Uploads and real-time | Multer / local filesystem, Socket.IO 4                     |
+| Frontend              | Next.js 16.3.3, React 19.2.8, TypeScript, Tailwind CSS 4   |
+| State and forms       | Redux Toolkit, TanStack Query, Axios, React Hook Form, Zod |
+| Backend testing       | Jest 30, SWC, Nest testing utilities, Supertest            |
+| Infrastructure        | Docker Compose, backend Dockerfile, GitHub Actions         |
 
 Vitest, React Testing Library, and Playwright are installed in the frontend, but frontend test suites and test scripts are not yet configured. Production deployment is not configured; the CI deployment job is a placeholder.
 
@@ -204,21 +206,21 @@ Frontend development and build scripts explicitly use Webpack.
 
 The API has no `/api` prefix. Protected HTTP routes require `Authorization: Bearer <accessToken>`.
 
-| Resource | Routes |
-| --- | --- |
-| Health | `GET /health` |
-| Authentication | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me` |
-| Projects | `POST /projects`, `GET /projects`, `GET /projects/:id`, `PATCH /projects/:id`, `DELETE /projects/:id` |
-| Project statistics | `GET /projects/:id/stats` |
-| Members | `GET /projects/:projectId/members`, `POST /projects/:projectId/members`, `PATCH /projects/:projectId/members/:memberId`, `DELETE /projects/:projectId/members/:memberId` |
-| Boards | `POST /boards`, `GET /boards`, `GET /boards/:id`, `PATCH /boards/:id`, `DELETE /boards/:id` |
-| Columns | `POST /boards/:boardId/columns`, `GET /boards/:boardId/columns`, `PATCH /boards/:boardId/columns/:id`, `PATCH /boards/:boardId/columns/:id/move`, `DELETE /boards/:boardId/columns/:id` |
-| Issues | `POST /tasks`, `GET /tasks`, `GET /tasks/:id`, `PATCH /tasks/:id`, `PATCH /tasks/:id/move`, `DELETE /tasks/:id` |
-| Comments | `POST /tasks/:taskId/comments`, `GET /tasks/:taskId/comments`, `PATCH /tasks/:taskId/comments/:commentId`, `DELETE /tasks/:taskId/comments/:commentId` |
-| Project labels | `GET /projects/:projectId/labels`, `POST /projects/:projectId/labels`, `PATCH /projects/:projectId/labels/:labelId`, `DELETE /projects/:projectId/labels/:labelId` |
-| Task labels | `GET /tasks/:taskId/labels`, `POST /tasks/:taskId/labels`, `DELETE /tasks/:taskId/labels/:labelId` |
-| Activity | `GET /tasks/:taskId/activities`, `GET /projects/:projectId/activities` |
-| Attachments | `GET /tasks/:taskId/attachments`, `POST /tasks/:taskId/attachments`, `DELETE /tasks/:taskId/attachments/:attachmentId` |
+| Resource           | Routes                                                                                                                                                                                  |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Health             | `GET /health`                                                                                                                                                                           |
+| Authentication     | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`                                                                                    |
+| Projects           | `POST /projects`, `GET /projects`, `GET /projects/:id`, `PATCH /projects/:id`, `DELETE /projects/:id`                                                                                   |
+| Project statistics | `GET /projects/:id/stats`                                                                                                                                                               |
+| Members            | `GET /projects/:projectId/members`, `POST /projects/:projectId/members`, `PATCH /projects/:projectId/members/:memberId`, `DELETE /projects/:projectId/members/:memberId`                |
+| Boards             | `POST /boards`, `GET /boards`, `GET /boards/:id`, `PATCH /boards/:id`, `DELETE /boards/:id`                                                                                             |
+| Columns            | `POST /boards/:boardId/columns`, `GET /boards/:boardId/columns`, `PATCH /boards/:boardId/columns/:id`, `PATCH /boards/:boardId/columns/:id/move`, `DELETE /boards/:boardId/columns/:id` |
+| Issues             | `POST /tasks`, `GET /tasks`, `GET /tasks/:id`, `PATCH /tasks/:id`, `PATCH /tasks/:id/move`, `DELETE /tasks/:id`                                                                         |
+| Comments           | `POST /tasks/:taskId/comments`, `GET /tasks/:taskId/comments`, `PATCH /tasks/:taskId/comments/:commentId`, `DELETE /tasks/:taskId/comments/:commentId`                                  |
+| Project labels     | `GET /projects/:projectId/labels`, `POST /projects/:projectId/labels`, `PATCH /projects/:projectId/labels/:labelId`, `DELETE /projects/:projectId/labels/:labelId`                      |
+| Task labels        | `GET /tasks/:taskId/labels`, `POST /tasks/:taskId/labels`, `DELETE /tasks/:taskId/labels/:labelId`                                                                                      |
+| Activity           | `GET /tasks/:taskId/activities`, `GET /projects/:projectId/activities`                                                                                                                  |
+| Attachments        | `GET /tasks/:taskId/attachments`, `POST /tasks/:taskId/attachments`, `DELETE /tasks/:taskId/attachments/:attachmentId`                                                                  |
 
 ### Issue Queries
 
@@ -272,291 +274,3 @@ GitHub Actions runs on pull requests and pushes to `main`, `master`, and `develo
 - A notification feature beyond the existing real-time events.
 - Frontend automated tests and CI checks.
 - Production deployment configuration.
-ed backend capabilities:
-
-- Authentication and JWT authorization
-- Projects and memberships
-- Project roles and RBAC
-- Boards and columns
-- Jira-like Issues
-- Atomic per-project issue numbering
-- Issue search, filtering, pagination, and sorting
-- Comments with author/admin/owner permissions
-- Project labels
-- Issue-label assignments
-
-Planned next areas:
-
-- Issue activity / changelog
-- Notifications
-- Attachments
-- Calendar / due-date views
-- Richer dashboard and analytics
-- Frontend Kanban and Issue UI
-- Automated tests
-- CI/CD
-- Production deployment
- backend capabilities:
-
-- Authentication and JWT authorization
-- Projects and memberships
-- Project roles and RBAC
-- Boards and columns
-- Jira-like Issues
-- Atomic per-project issue numbering
-- Issue search, filtering, pagination, and sorting
-- Comments with author/admin/owner permissions
-- Project labels
-- Issue-label assignments
-
-Planned next areas:
-
-- Issue activity / changelog
-- Notifications
-- Attachments
-- Calendar / due-date views
-- Richer dashboard and analytics
-- Frontend Kanban and Issue UI
-- Automated tests
-- CI/CD
-- Production deployment
- backend capabilities:
-
-- Authentication and JWT authorization
-- Projects and memberships
-- Project roles and RBAC
-- Boards and columns
-- Jira-like Issues
-- Atomic per-project issue numbering
-- Issue search, filtering, pagination, and sorting
-- Comments with author/admin/owner permissions
-- Project labels
-- Issue-label assignments
-
-Planned next areas:
-
-- Issue activity / changelog
-- Notifications
-- Attachments
-- Calendar / due-date views
-- Richer dashboard and analytics
-- Frontend Kanban and Issue UI
-- Automated tests
-- CI/CD
-- Production deployment
- backend capabilities:
-
-- Authentication and JWT authorization
-- Projects and memberships
-- Project roles and RBAC
-- Boards and columns
-- Jira-like Issues
-- Atomic per-project issue numbering
-- Issue search, filtering, pagination, and sorting
-- Comments with author/admin/owner permissions
-- Project labels
-- Issue-label assignments
-
-Planned next areas:
-
-- Issue activity / changelog
-- Notifications
-- Attachments
-- Calendar / due-date views
-- Richer dashboard and analytics
-- Frontend Kanban and Issue UI
-- Automated tests
-- CI/CD
-- Production deployment
- backend capabilities:
-
-- Authentication and JWT authorization
-- Projects and memberships
-- Project roles and RBAC
-- Boards and columns
-- Jira-like Issues
-- Atomic per-project issue numbering
-- Issue search, filtering, pagination, and sorting
-- Comments with author/admin/owner permissions
-- Project labels
-- Issue-label assignments
-
-Planned next areas:
-
-- Issue activity / changelog
-- Notifications
-- Attachments
-- Calendar / due-date views
-- Richer dashboard and analytics
-- Frontend Kanban and Issue UI
-- Automated tests
-- CI/CD
-- Production deployment
- backend capabilities:
-
-- Authentication and JWT authorization
-- Projects and memberships
-- Project roles and RBAC
-- Boards and columns
-- Jira-like Issues
-- Atomic per-project issue numbering
-- Issue search, filtering, pagination, and sorting
-- Comments with author/admin/owner permissions
-- Project labels
-- Issue-label assignments
-
-Planned next areas:
-
-- Issue activity / changelog
-- Notifications
-- Attachments
-- Calendar / due-date views
-- Richer dashboard and analytics
-- Frontend Kanban and Issue UI
-- Automated tests
-- CI/CD
-- Production deployment
- backend capabilities:
-
-- Authentication and JWT authorization
-- Projects and memberships
-- Project roles and RBAC
-- Boards and columns
-- Jira-like Issues
-- Atomic per-project issue numbering
-- Issue search, filtering, pagination, and sorting
-- Comments with author/admin/owner permissions
-- Project labels
-- Issue-label assignments
-
-Planned next areas:
-
-- Issue activity / changelog
-- Notifications
-- Attachments
-- Calendar / due-date views
-- Richer dashboard and analytics
-- Frontend Kanban and Issue UI
-- Automated tests
-- CI/CD
-- Production deployment
- backend capabilities:
-
-- Authentication and JWT authorization
-- Projects and memberships
-- Project roles and RBAC
-- Boards and columns
-- Jira-like Issues
-- Atomic per-project issue numbering
-- Issue search, filtering, pagination, and sorting
-- Comments with author/admin/owner permissions
-- Project labels
-- Issue-label assignments
-
-Planned next areas:
-
-- Issue activity / changelog
-- Notifications
-- Attachments
-- Calendar / due-date views
-- Richer dashboard and analytics
-- Frontend Kanban and Issue UI
-- Automated tests
-- CI/CD
-- Production deployment
- backend capabilities:
-
-- Authentication and JWT authorization
-- Projects and memberships
-- Project roles and RBAC
-- Boards and columns
-- Jira-like Issues
-- Atomic per-project issue numbering
-- Issue search, filtering, pagination, and sorting
-- Comments with author/admin/owner permissions
-- Project labels
-- Issue-label assignments
-
-Planned next areas:
-
-- Issue activity / changelog
-- Notifications
-- Attachments
-- Calendar / due-date views
-- Richer dashboard and analytics
-- Frontend Kanban and Issue UI
-- Automated tests
-- CI/CD
-- Production deployment
- backend capabilities:
-
-- Authentication and JWT authorization
-- Projects and memberships
-- Project roles and RBAC
-- Boards and columns
-- Jira-like Issues
-- Atomic per-project issue numbering
-- Issue search, filtering, pagination, and sorting
-- Comments with author/admin/owner permissions
-- Project labels
-- Issue-label assignments
-
-Planned next areas:
-
-- Issue activity / changelog
-- Notifications
-- Attachments
-- Calendar / due-date views
-- Richer dashboard and analytics
-- Frontend Kanban and Issue UI
-- Automated tests
-- CI/CD
-- Production deployment
- backend capabilities:
-
-- Authentication and JWT authorization
-- Projects and memberships
-- Project roles and RBAC
-- Boards and columns
-- Jira-like Issues
-- Atomic per-project issue numbering
-- Issue search, filtering, pagination, and sorting
-- Comments with author/admin/owner permissions
-- Project labels
-- Issue-label assignments
-
-Planned next areas:
-
-- Issue activity / changelog
-- Notifications
-- Attachments
-- Calendar / due-date views
-- Richer dashboard and analytics
-- Frontend Kanban and Issue UI
-- Automated tests
-- CI/CD
-- Production deployment
-ed backend capabilities:
-
-- Authentication and JWT authorization
-- Projects and memberships
-- Project roles and RBAC
-- Boards and columns
-- Jira-like Issues
-- Atomic per-project issue numbering
-- Issue search, filtering, pagination, and sorting
-- Comments with author/admin/owner permissions
-- Project labels
-- Issue-label assignments
-
-Planned next areas:
-
-- Issue activity / changelog
-- Notifications
-- Attachments
-- Calendar / due-date views
-- Richer dashboard and analytics
-- Frontend Kanban and Issue UI
-- Automated tests
-- CI/CD
-- Production deployment

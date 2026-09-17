@@ -1,22 +1,22 @@
-﻿import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+﻿import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
 
-import "./globals.css";
-import { AppProviders } from "@/providers/app-providers";
+import './globals.css';
+import { AppProviders } from '@/providers/app-providers';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
 export const metadata: Metadata = {
-  title: "Task Tracker",
-  description: "Full-stack task management application",
+  title: 'Task Tracker',
+  description: 'Full-stack task management application',
 };
 
 export default function RootLayout({
