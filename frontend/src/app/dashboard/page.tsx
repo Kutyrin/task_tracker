@@ -1,27 +1,12 @@
 ﻿'use client';
 
-import { useRouter } from 'next/navigation';
+import { useAppSelector } from '@/store/hooks';
 
-import { logout } from '@/lib/auth';
-import { clearStoredTokens } from '@/lib/auth-storage';
-import { clearAuth } from '@/store/auth-slice';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { LogoutButton } from '@/components/auth/logout-button';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 
 function DashboardContent() {
-  const router = useRouter();
-  const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } finally {
-      clearStoredTokens();
-      dispatch(clearAuth());
-      router.replace('/login');
-    }
-  };
 
   return (
     <main className='min-h-screen px-6 py-12'>
@@ -39,13 +24,7 @@ function DashboardContent() {
             </p>
           </div>
 
-          <button
-            type='button'
-            onClick={handleLogout}
-            className='rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100'
-          >
-            Logout
-          </button>
+          <LogoutButton />
         </div>
       </div>
     </main>
