@@ -74,9 +74,9 @@ function CreateProjectContent() {
       <div className="mx-auto max-w-2xl">
         <Link
           href="/projects"
-          className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
+          className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
         >
-          ← Back to projects
+          Back to projects
         </Link>
 
         <div className="mt-6">
