@@ -9,6 +9,7 @@ import { ProjectRole } from '@prisma/client';
 
 import { RealtimeService } from '../realtime/realtime.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { mapTask, taskRelations } from '../tasks/task.mapper';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { MoveColumnDto } from './dto/move-column.dto';
@@ -184,6 +185,7 @@ export class BoardsService {
               orderBy: {
                 position: 'asc',
               },
+              include: taskRelations,
             },
             _count: {
               select: {
@@ -199,7 +201,13 @@ export class BoardsService {
       throw new NotFoundException('Board not found');
     }
 
-    return board;
+    return {
+      ...board,
+      columns: board.columns.map((column) => ({
+        ...column,
+        tasks: column.tasks.map(mapTask),
+      })),
+    };
   }
 
   async update(userId: number, boardId: number, dto: UpdateBoardDto) {
