@@ -4,13 +4,17 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { useBoard } from '@/hooks/boards/use-board';
 import { BoardColumnManager } from '@/components/boards/board-column-manager';
+import { BoardTaskCard } from '@/components/boards/board-task-card';
+import { CreateTaskForm } from '@/components/boards/create-task-form';
+import { useBoard } from '@/hooks/boards/use-board';
 import { useProject } from '@/hooks/projects/use-project';
+import { useProjectMembers } from '@/hooks/projects/use-project-members';
 
 function BoardContent({ boardId }: { boardId: number }) {
   const { data: board, isPending, isError } = useBoard(boardId);
   const { data: project } = useProject(board?.projectId ?? 0);
+  const { data: members } = useProjectMembers(board?.projectId ?? 0);
 
   if (isPending) {
     return (
@@ -67,8 +71,22 @@ function BoardContent({ boardId }: { boardId: number }) {
           </h1>
         </div>
 
+        <div>
+          <CreateTaskForm
+            boardId={board.id}
+            projectId={board.projectId}
+            columns={board.columns}
+            members={
+              members?.map((member) => ({
+                id: member.user.id,
+                email: member.user.email,
+              })) ?? []
+            }
+          />
+        </div>
+
         <div className="mt-8 overflow-x-auto">
-          <div className="grid min-w-[900px] grid-cols-4 gap-4">
+          <div className="grid min-w-225 grid-cols-4 gap-4">
             {board.columns
               .slice()
               .sort((a, b) => a.position - b.position)
@@ -87,8 +105,19 @@ function BoardContent({ boardId }: { boardId: number }) {
                     </span>
                   </div>
 
-                  <div className="mt-4 rounded-xl border border-dashed border-slate-300 p-6 text-center">
-                    <p className="text-sm text-slate-500">No issues yet</p>
+                  <div className="mt-4 space-y-3">
+                    {column.tasks.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
+                        <p className="text-sm text-slate-500">No issues yet</p>
+                      </div>
+                    ) : (
+                      column.tasks
+                        .slice()
+                        .sort((a, b) => a.position - b.position)
+                        .map((task) => (
+                          <BoardTaskCard key={task.id} task={task} />
+                        ))
+                    )}
                   </div>
                 </section>
               ))}

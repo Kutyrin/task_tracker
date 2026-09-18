@@ -20,6 +20,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { BoardsService } from './boards.service';
+import { taskRelations } from '../tasks/task.mapper';
 
 describe('BoardsService', () => {
   let service: BoardsService;
@@ -360,7 +361,45 @@ describe('BoardsService', () => {
               {
                 id: 100,
                 title: 'Task',
+                description: 'Task description',
+                issueNumber: 6,
+                issueType: 'TASK',
+                priority: 'HIGH',
+                dueDate: null,
                 position: 1000,
+                createdAt: new Date('2026-09-19T10:00:00.000Z'),
+                updatedAt: new Date('2026-09-19T10:00:00.000Z'),
+                userId: 1,
+                reporterId: 1,
+                assigneeId: 2,
+                projectId: 1,
+                columnId: 1,
+                project: {
+                  id: 1,
+                  name: 'Project',
+                  key: 'TASK',
+                },
+                column: {
+                  id: 1,
+                  name: 'To Do',
+                  position: 1000,
+                },
+                reporter: {
+                  id: 1,
+                  email: 'reporter@example.com',
+                },
+                assignee: {
+                  id: 2,
+                  email: 'assignee@example.com',
+                },
+                labels: [
+                  {
+                    label: {
+                      id: 1,
+                      name: 'frontend',
+                    },
+                  },
+                ],
               },
             ],
             _count: {
@@ -396,6 +435,7 @@ describe('BoardsService', () => {
                 orderBy: {
                   position: 'asc',
                 },
+                include: taskRelations,
               },
               _count: {
                 select: {
@@ -407,7 +447,17 @@ describe('BoardsService', () => {
         },
       });
 
-      expect(result).toEqual(board);
+      expect(result).toEqual({
+        ...board,
+        columns: board.columns.map((column) => ({
+          ...column,
+          tasks: column.tasks.map((task) => ({
+            ...task,
+            labels: task.labels.map((taskLabel) => taskLabel.label),
+            issueKey: 'TASK-6',
+          })),
+        })),
+      });
     });
 
     it('should throw NotFoundException when board does not exist', async () => {

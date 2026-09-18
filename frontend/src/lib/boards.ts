@@ -1,4 +1,5 @@
 import api from '@/lib/api';
+import type { Task } from '@/lib/tasks';
 
 export interface BoardColumn {
   id: number;
@@ -12,6 +13,10 @@ export interface BoardColumn {
   };
 }
 
+export interface BoardDetailsColumn extends BoardColumn {
+  tasks: Task[];
+}
+
 export interface Board {
   id: number;
   name: string;
@@ -20,6 +25,10 @@ export interface Board {
   projectId: number;
   ownerId: number;
   columns: BoardColumn[];
+}
+
+export interface BoardDetails extends Omit<Board, 'columns'> {
+  columns: BoardDetailsColumn[];
 }
 
 export async function getBoards(): Promise<Board[]> {
@@ -45,8 +54,8 @@ export async function createBoard(data: CreateBoardData): Promise<Board> {
   return response.data;
 }
 
-export async function getBoard(boardId: number): Promise<Board> {
-  const response = await api.get<Board>(`/boards/${boardId}`);
+export async function getBoard(boardId: number): Promise<BoardDetails> {
+  const response = await api.get<BoardDetails>(`/boards/${boardId}`);
 
   return response.data;
 }
