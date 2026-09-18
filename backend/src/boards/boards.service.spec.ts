@@ -363,6 +363,9 @@ describe('BoardsService', () => {
                 position: 1000,
               },
             ],
+            _count: {
+              tasks: 1,
+            },
           },
         ],
       };
@@ -392,6 +395,11 @@ describe('BoardsService', () => {
               tasks: {
                 orderBy: {
                   position: 'asc',
+                },
+              },
+              _count: {
+                select: {
+                  tasks: true,
                 },
               },
             },

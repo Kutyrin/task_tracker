@@ -185,6 +185,11 @@ export class BoardsService {
                 position: 'asc',
               },
             },
+            _count: {
+              select: {
+                tasks: true,
+              },
+            },
           },
         },
       },
