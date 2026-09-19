@@ -1,3 +1,9 @@
+'use client';
+
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import Link from 'next/link';
+
 import type { Task } from '@/lib/tasks';
 
 interface BoardTaskCardProps {
@@ -17,9 +23,13 @@ const issueTypeLabels = {
   EPIC: 'Epic',
 } satisfies Record<Task['issueType'], string>;
 
-export function BoardTaskCard({ task }: BoardTaskCardProps) {
+interface TaskCardContentProps {
+  task: Task;
+}
+
+function TaskCardContent({ task }: TaskCardContentProps) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
+    <>
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs font-semibold text-slate-500">
           {task.issueKey ?? `#${task.id}`}
@@ -62,6 +72,52 @@ export function BoardTaskCard({ task }: BoardTaskCardProps) {
           ))}
         </div>
       )}
+    </>
+  );
+}
+
+export function BoardTaskCard({ task }: BoardTaskCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: task.id,
+    data: {
+      type: 'task',
+      task,
+    },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <article
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`cursor-grab touch-manipulation rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md active:cursor-grabbing ${
+        isDragging ? 'opacity-30' : ''
+      }`}
+    >
+      <Link href={`/tasks/${task.id}`} className="block">
+        <TaskCardContent task={task} />
+      </Link>
+    </article>
+  );
+}
+
+export function BoardTaskCardOverlay({ task }: BoardTaskCardProps) {
+  return (
+    <article className="w-full cursor-grabbing rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+      <TaskCardContent task={task} />
     </article>
   );
 }

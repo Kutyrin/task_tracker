@@ -4,9 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import type { BoardColumn } from '@/lib/boards';
-import type { IssueType, TaskPriority, TaskUser } from '@/lib/tasks';
-import { useCreateTask } from '@/hooks/tasks/use-create-task';
+import { useUpdateTask } from '@/hooks/tasks/use-update-task';
+import type { IssueType, Task, TaskPriority, TaskUser } from '@/lib/tasks';
 
 const schema = z.object({
   title: z
@@ -17,14 +16,11 @@ const schema = z.object({
 
   description: z
     .string()
-    .trim()
     .max(5000, 'Description must contain at most 5000 characters'),
 
   issueType: z.enum(['TASK', 'BUG', 'STORY', 'EPIC']),
 
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
-
-  columnId: z.number().int().positive(),
 
   assigneeId: z.number().int().positive().optional(),
 
@@ -33,93 +29,73 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-interface CreateTaskFormProps {
+interface EditTaskFormProps {
   boardId: number;
-  projectId: number;
-  columns: BoardColumn[];
+  task: Task;
   members: TaskUser[];
+  onCancel: () => void;
+  onSaved: () => void;
 }
 
-export function CreateTaskForm({
+export function EditTaskForm({
   boardId,
-  projectId,
-  columns,
+  task,
   members,
-}: CreateTaskFormProps) {
-  const createTaskMutation = useCreateTask(boardId);
-
-  const orderedColumns = [...columns].sort((a, b) => a.position - b.position);
+  onCancel,
+  onSaved,
+}: EditTaskFormProps) {
+  const updateTaskMutation = useUpdateTask(boardId, task.id);
 
   const {
     register,
     handleSubmit,
-    reset,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      title: '',
-      description: '',
-      issueType: 'TASK',
-      priority: 'MEDIUM',
-      columnId: orderedColumns[0]?.id ?? 0,
-      assigneeId: undefined,
-      dueDate: '',
+      title: task.title,
+      description: task.description ?? '',
+      issueType: task.issueType,
+      priority: task.priority,
+      assigneeId: task.assigneeId ?? undefined,
+      dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
     },
   });
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await createTaskMutation.mutateAsync({
+      await updateTaskMutation.mutateAsync({
         title: values.title,
-        description: values.description || undefined,
+        description: values.description || null,
         issueType: values.issueType as IssueType,
         priority: values.priority as TaskPriority,
-        projectId,
-        columnId: values.columnId,
-        assigneeId: values.assigneeId,
-        dueDate: values.dueDate || undefined,
+        assigneeId: values.assigneeId ?? null,
+        dueDate: values.dueDate || null,
       });
 
-      reset({
-        title: '',
-        description: '',
-        issueType: 'TASK',
-        priority: 'MEDIUM',
-        columnId: orderedColumns[0]?.id ?? 0,
-        assigneeId: undefined,
-        dueDate: '',
-      });
+      onSaved();
     } catch {
       return;
     }
   };
 
   return (
-    <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-950">Create issue</h2>
-
-        <p className="mt-1 text-sm text-slate-600">
-          Add a task, bug, story, or epic to this board.
-        </p>
-      </div>
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-semibold text-slate-950">Edit issue</h2>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
         <div>
           <label
-            htmlFor="task-title"
+            htmlFor="edit-task-title"
             className="text-sm font-medium text-slate-700"
           >
             Title
           </label>
 
           <input
-            id="task-title"
+            id="edit-task-title"
             {...register('title')}
             type="text"
-            autoComplete="off"
-            placeholder="Implement authentication"
             className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
           />
 
@@ -130,17 +106,16 @@ export function CreateTaskForm({
 
         <div>
           <label
-            htmlFor="task-description"
+            htmlFor="edit-task-description"
             className="text-sm font-medium text-slate-700"
           >
             Description
           </label>
 
           <textarea
-            id="task-description"
+            id="edit-task-description"
             {...register('description')}
-            rows={4}
-            placeholder="Describe the issue..."
+            rows={6}
             className="mt-2 w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
           />
 
@@ -151,17 +126,17 @@ export function CreateTaskForm({
           )}
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-5 sm:grid-cols-2">
           <div>
             <label
-              htmlFor="task-type"
+              htmlFor="edit-task-type"
               className="text-sm font-medium text-slate-700"
             >
               Issue type
             </label>
 
             <select
-              id="task-type"
+              id="edit-task-type"
               {...register('issueType')}
               className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
             >
@@ -174,14 +149,14 @@ export function CreateTaskForm({
 
           <div>
             <label
-              htmlFor="task-priority"
+              htmlFor="edit-task-priority"
               className="text-sm font-medium text-slate-700"
             >
               Priority
             </label>
 
             <select
-              id="task-priority"
+              id="edit-task-priority"
               {...register('priority')}
               className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
             >
@@ -193,37 +168,14 @@ export function CreateTaskForm({
 
           <div>
             <label
-              htmlFor="task-column"
-              className="text-sm font-medium text-slate-700"
-            >
-              Column
-            </label>
-
-            <select
-              id="task-column"
-              {...register('columnId', {
-                setValueAs: (value) => Number(value),
-              })}
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-            >
-              {orderedColumns.map((column) => (
-                <option key={column.id} value={column.id}>
-                  {column.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="task-assignee"
+              htmlFor="edit-task-assignee"
               className="text-sm font-medium text-slate-700"
             >
               Assignee
             </label>
 
             <select
-              id="task-assignee"
+              id="edit-task-assignee"
               {...register('assigneeId', {
                 setValueAs: (value) => (value ? Number(value) : undefined),
               })}
@@ -238,37 +190,46 @@ export function CreateTaskForm({
               ))}
             </select>
           </div>
+
+          <div>
+            <label
+              htmlFor="edit-task-due-date"
+              className="text-sm font-medium text-slate-700"
+            >
+              Due date
+            </label>
+
+            <input
+              id="edit-task-due-date"
+              {...register('dueDate')}
+              type="date"
+              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
+            />
+          </div>
         </div>
 
-        <div className="max-w-xs">
-          <label
-            htmlFor="task-due-date"
-            className="text-sm font-medium text-slate-700"
-          >
-            Due date
-          </label>
-
-          <input
-            id="task-due-date"
-            {...register('dueDate')}
-            type="date"
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-          />
-        </div>
-
-        {createTaskMutation.isError && (
-          <p className="text-sm text-red-600">Failed to create issue.</p>
+        {updateTaskMutation.isError && (
+          <p className="text-sm text-red-600">Failed to update issue.</p>
         )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting || orderedColumns.length === 0}
-          className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isSubmitting ? 'Creating...' : 'Create issue'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSubmitting ? 'Saving...' : 'Save changes'}
+          </button>
+
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+        </div>
       </form>
     </div>
   );
 }
-

@@ -14,6 +14,7 @@ export const taskRelations = {
       id: true,
       name: true,
       position: true,
+      boardId: true,
     },
   },
 

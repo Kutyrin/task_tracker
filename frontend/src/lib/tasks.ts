@@ -29,6 +29,7 @@ export interface TaskColumn {
   id: number;
   name: string;
   position: number;
+  boardId: number;
 }
 
 export interface Task {

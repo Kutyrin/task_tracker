@@ -1,20 +1,85 @@
 'use client';
 
+import {
+  closestCorners,
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useState } from 'react';
 
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { BoardColumnManager } from '@/components/boards/board-column-manager';
-import { BoardTaskCard } from '@/components/boards/board-task-card';
+import { BoardTaskCardOverlay } from '@/components/boards/board-task-card';
+import { BoardTaskColumn } from '@/components/boards/board-task-column';
 import { CreateTaskForm } from '@/components/boards/create-task-form';
 import { useBoard } from '@/hooks/boards/use-board';
 import { useProject } from '@/hooks/projects/use-project';
 import { useProjectMembers } from '@/hooks/projects/use-project-members';
+import { useMoveTask } from '@/hooks/tasks/use-move-task';
+import type { Task } from '@/lib/tasks';
+
+function calculateTaskPosition(
+  tasks: Task[],
+  activeTaskId: number,
+  overTaskId: number | null,
+) {
+  const sortedTasks = tasks
+    .filter((task) => task.id !== activeTaskId)
+    .slice()
+    .sort((a, b) => a.position - b.position);
+
+  if (overTaskId === null) {
+    const lastTask = sortedTasks.at(-1);
+
+    return lastTask ? lastTask.position + 1000 : 1000;
+  }
+
+  const overIndex = sortedTasks.findIndex((task) => task.id === overTaskId);
+
+  if (overIndex === -1) {
+    const lastTask = sortedTasks.at(-1);
+
+    return lastTask ? lastTask.position + 1000 : 1000;
+  }
+
+  const previousTask = sortedTasks[overIndex - 1];
+  const nextTask = sortedTasks[overIndex];
+
+  if (!previousTask) {
+    return nextTask.position - 1000;
+  }
+
+  return (previousTask.position + nextTask.position) / 2;
+}
 
 function BoardContent({ boardId }: { boardId: number }) {
   const { data: board, isPending, isError } = useBoard(boardId);
   const { data: project } = useProject(board?.projectId ?? 0);
   const { data: members } = useProjectMembers(board?.projectId ?? 0);
+
+  const moveTaskMutation = useMoveTask(boardId);
+  const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+  );
+
+  const activeTask = activeTaskId
+    ? board?.columns
+        .flatMap((column) => column.tasks)
+        .find((task) => task.id === activeTaskId)
+    : null;
 
   if (isPending) {
     return (
@@ -51,6 +116,109 @@ function BoardContent({ boardId }: { boardId: number }) {
     );
   }
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const taskId = Number(event.active.id);
+
+    if (!Number.isInteger(taskId)) {
+      return;
+    }
+
+    setActiveTaskId(taskId);
+  };
+
+  const handleDragCancel = () => {
+    setActiveTaskId(null);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over) {
+      return;
+    }
+
+    const activeTaskId = Number(active.id);
+
+    if (!Number.isInteger(activeTaskId)) {
+      return;
+    }
+
+    if (active.id === over.id) {
+      return;
+    }
+
+    const sourceColumn = board.columns.find((column) =>
+      column.tasks.some((task) => task.id === activeTaskId),
+    );
+
+    if (!sourceColumn) {
+      return;
+    }
+
+    const overId = over.id;
+
+    let targetColumnId: number;
+    let overTaskId: number | null = null;
+
+    if (typeof overId === 'string' && overId.startsWith('column-')) {
+      targetColumnId = Number(overId.replace('column-', ''));
+
+      if (!Number.isInteger(targetColumnId)) {
+        return;
+      }
+    } else {
+      overTaskId = Number(overId);
+
+      if (!Number.isInteger(overTaskId)) {
+        return;
+      }
+
+      const targetColumn = board.columns.find((column) =>
+        column.tasks.some((task) => task.id === overTaskId),
+      );
+
+      if (!targetColumn) {
+        return;
+      }
+
+      targetColumnId = targetColumn.id;
+    }
+
+    const targetColumn = board.columns.find(
+      (column) => column.id === targetColumnId,
+    );
+
+    if (!targetColumn) {
+      return;
+    }
+
+    const position = calculateTaskPosition(
+      targetColumn.tasks,
+      activeTaskId,
+      overTaskId,
+    );
+
+    if (sourceColumn.id === targetColumn.id && overTaskId === null) {
+      const sortedTasks = sourceColumn.tasks
+        .slice()
+        .sort((a, b) => a.position - b.position);
+
+      if (sortedTasks.at(-1)?.id === activeTaskId) {
+        return;
+      }
+    }
+
+    moveTaskMutation.mutate({
+      taskId: activeTaskId,
+      data: {
+        columnId: targetColumnId,
+        position,
+      },
+    });
+
+    setActiveTaskId(null);
+  };
+
   return (
     <main className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-6xl">
@@ -85,44 +253,28 @@ function BoardContent({ boardId }: { boardId: number }) {
           />
         </div>
 
-        <div className="mt-8 overflow-x-auto">
-          <div className="grid min-w-225 grid-cols-4 gap-4">
-            {board.columns
-              .slice()
-              .sort((a, b) => a.position - b.position)
-              .map((column) => (
-                <section
-                  key={column.id}
-                  className="min-h-96 rounded-2xl bg-slate-100 p-4"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="font-semibold text-slate-950">
-                      {column.name}
-                    </h2>
-
-                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
-                      {column._count.tasks}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 space-y-3">
-                    {column.tasks.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
-                        <p className="text-sm text-slate-500">No issues yet</p>
-                      </div>
-                    ) : (
-                      column.tasks
-                        .slice()
-                        .sort((a, b) => a.position - b.position)
-                        .map((task) => (
-                          <BoardTaskCard key={task.id} task={task} />
-                        ))
-                    )}
-                  </div>
-                </section>
-              ))}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <div className="mt-8 overflow-x-auto">
+            <div className="grid min-w-225 grid-cols-4 gap-4">
+              {board.columns
+                .slice()
+                .sort((a, b) => a.position - b.position)
+                .map((column) => (
+                  <BoardTaskColumn key={column.id} column={column} />
+                ))}
+            </div>
           </div>
-        </div>
+
+          <DragOverlay dropAnimation={null}>
+            {activeTask ? <BoardTaskCardOverlay task={activeTask} /> : null}
+          </DragOverlay>
+        </DndContext>
 
         {(project?.role === 'OWNER' || project?.role === 'ADMIN') && (
           <BoardColumnManager boardId={board.id} columns={board.columns} />
