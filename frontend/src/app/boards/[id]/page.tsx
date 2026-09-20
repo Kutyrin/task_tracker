@@ -29,6 +29,7 @@ function calculateTaskPosition(
   tasks: Task[],
   activeTaskId: number,
   overTaskId: number | null,
+  insertAfter = false,
 ) {
   const sortedTasks = tasks
     .filter((task) => task.id !== activeTaskId)
@@ -49,14 +50,23 @@ function calculateTaskPosition(
     return lastTask ? lastTask.position + 1000 : 1000;
   }
 
-  const previousTask = sortedTasks[overIndex - 1];
-  const nextTask = sortedTasks[overIndex];
+  const insertIndex = overIndex + (insertAfter ? 1 : 0);
+  const previousTask = sortedTasks[insertIndex - 1];
+  const nextTask = sortedTasks[insertIndex];
 
-  if (!previousTask) {
+  if (!previousTask && nextTask) {
     return nextTask.position - 1000;
   }
 
-  return (previousTask.position + nextTask.position) / 2;
+  if (previousTask && !nextTask) {
+    return previousTask.position + 1000;
+  }
+
+  if (previousTask && nextTask) {
+    return (previousTask.position + nextTask.position) / 2;
+  }
+
+  return 1000;
 }
 
 function BoardContent({ boardId }: { boardId: number }) {
@@ -143,10 +153,6 @@ function BoardContent({ boardId }: { boardId: number }) {
       return;
     }
 
-    if (active.id === over.id) {
-      return;
-    }
-
     const sourceColumn = board.columns.find((column) =>
       column.tasks.some((task) => task.id === activeTaskId),
     );
@@ -192,21 +198,44 @@ function BoardContent({ boardId }: { boardId: number }) {
       return;
     }
 
+    let insertAfter = false;
+
+    if (overTaskId !== null) {
+      if (sourceColumn.id === targetColumn.id) {
+        const sourceTasks = sourceColumn.tasks
+          .slice()
+          .sort((a, b) => a.position - b.position);
+
+        const targetTasks = targetColumn.tasks
+          .filter((task) => task.id !== activeTaskId)
+          .slice()
+          .sort((a, b) => a.position - b.position);
+
+        const sourceIndex = sourceTasks.findIndex(
+          (task) => task.id === activeTaskId,
+        );
+
+        const overIndex = targetTasks.findIndex(
+          (task) => task.id === overTaskId,
+        );
+
+        insertAfter = sourceIndex <= overIndex;
+      } else {
+        const activeRect = active.rect.current.translated;
+        const overRect = over.rect;
+
+        insertAfter =
+          activeRect !== null &&
+          activeRect.top > overRect.top + overRect.height / 2;
+      }
+    }
+
     const position = calculateTaskPosition(
       targetColumn.tasks,
       activeTaskId,
       overTaskId,
+      insertAfter,
     );
-
-    if (sourceColumn.id === targetColumn.id && overTaskId === null) {
-      const sortedTasks = sourceColumn.tasks
-        .slice()
-        .sort((a, b) => a.position - b.position);
-
-      if (sortedTasks.at(-1)?.id === activeTaskId) {
-        return;
-      }
-    }
 
     moveTaskMutation.mutate({
       taskId: activeTaskId,
