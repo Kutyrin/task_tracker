@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import { z } from 'zod';
 
-import type { BoardColumn } from '@/lib/boards';
 import { useCreateColumn } from '@/hooks/boards/use-create-column';
 import { useDeleteColumn } from '@/hooks/boards/use-delete-column';
 import { useUpdateColumn } from '@/hooks/boards/use-update-column';
-import { useMoveColumn } from '@/hooks/boards/use-move-column';
+import type { BoardColumn } from '@/lib/boards';
 
 const columnSchema = z
   .string()
@@ -27,11 +26,12 @@ export function BoardColumnManager({
   const createColumnMutation = useCreateColumn(boardId);
   const updateColumnMutation = useUpdateColumn(boardId);
   const deleteColumnMutation = useDeleteColumn(boardId);
-  const moveColumnMutation = useMoveColumn(boardId);
 
   const [newColumnName, setNewColumnName] = useState('');
   const [editingColumnId, setEditingColumnId] = useState<number | null>(null);
   const [editingColumnName, setEditingColumnName] = useState('');
+
+  const orderedColumns = [...columns].sort((a, b) => a.position - b.position);
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -104,57 +104,6 @@ export function BoardColumnManager({
     }
   };
 
-  const handleMove = async (columnId: number, direction: 'up' | 'down') => {
-    const orderedColumns = [...columns].sort((a, b) => a.position - b.position);
-
-    const currentIndex = orderedColumns.findIndex(
-      (column) => column.id === columnId,
-    );
-
-    if (currentIndex === -1) {
-      return;
-    }
-
-    const targetIndex =
-      direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
-    if (targetIndex < 0 || targetIndex >= orderedColumns.length) {
-      return;
-    }
-
-    const reorderedColumns = orderedColumns.filter(
-      (column) => column.id !== columnId,
-    );
-
-    reorderedColumns.splice(targetIndex, 0, orderedColumns[currentIndex]);
-
-    const previousColumn = reorderedColumns[targetIndex - 1];
-    const nextColumn = reorderedColumns[targetIndex + 1];
-
-    let position: number;
-
-    if (!previousColumn) {
-      position = nextColumn.position - 1000;
-    } else if (!nextColumn) {
-      position = previousColumn.position + 1000;
-    } else {
-      position =
-        previousColumn.position +
-        (nextColumn.position - previousColumn.position) / 2;
-    }
-
-    try {
-      await moveColumnMutation.mutateAsync({
-        columnId,
-        position,
-      });
-    } catch {
-      return;
-    }
-  };
-
-  const orderedColumns = [...columns].sort((a, b) => a.position - b.position);
-
   return (
     <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div>
@@ -194,7 +143,7 @@ export function BoardColumnManager({
       )}
 
       <div className="mt-6 space-y-3">
-        {orderedColumns.map((column, index) => {
+        {orderedColumns.map((column) => {
           const isEditing = editingColumnId === column.id;
 
           return (
@@ -220,29 +169,7 @@ export function BoardColumnManager({
                 </div>
               )}
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleMove(column.id, 'up')}
-                  disabled={index === 0 || moveColumnMutation.isPending}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label={`Move ${column.name} up`}
-                >
-                  ↑
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleMove(column.id, 'down')}
-                  disabled={
-                    index === orderedColumns.length - 1 ||
-                    moveColumnMutation.isPending
-                  }
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label={`Move ${column.name} down`}
-                >
-                  ↓
-                </button>
+              <div className="flex flex-wrap gap-2">
                 {isEditing ? (
                   <>
                     <button
@@ -278,7 +205,7 @@ export function BoardColumnManager({
                   disabled={deleteColumnMutation.isPending}
                   className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Delete
+                  {deleteColumnMutation.isPending ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>
