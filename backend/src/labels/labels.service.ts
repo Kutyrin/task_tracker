@@ -5,12 +5,26 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { ActivityType, ProjectRole } from '@prisma/client';
+import { ActivityType, Prisma, ProjectRole } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { CreateLabelDto } from './dto/create-label.dto';
 import { UpdateLabelDto } from './dto/update-label.dto';
+
+const activitySelect = {
+  id: true,
+  type: true,
+  message: true,
+  metadata: true,
+  createdAt: true,
+  user: {
+    select: {
+      id: true,
+      email: true,
+    },
+  },
+} satisfies Prisma.ActivitySelect;
 
 @Injectable()
 export class LabelsService {
@@ -280,6 +294,7 @@ export class LabelsService {
             labelName: label.name,
           },
         },
+        select: activitySelect,
       });
     });
 
@@ -376,6 +391,7 @@ export class LabelsService {
             labelName: relation.label.name,
           },
         },
+        select: activitySelect,
       });
     });
 

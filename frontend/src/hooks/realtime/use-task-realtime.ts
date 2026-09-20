@@ -26,6 +26,12 @@ interface ActivityCreatedPayload extends Activity {
   };
 }
 
+interface TaskLabelRealtimePayload {
+  id: number;
+  name: string;
+  taskId: number;
+}
+
 export function useTaskRealtime(taskId: number, projectId: number | null) {
   const queryClient = useQueryClient();
   const accessToken = useAppSelector((state) => state.auth.accessToken);
@@ -121,6 +127,16 @@ export function useTaskRealtime(taskId: number, projectId: number | null) {
       );
     };
 
+    const refreshLabels = (label: TaskLabelRealtimePayload) => {
+      if (label.taskId !== taskId) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({
+        queryKey: ['labels', 'tasks', taskId],
+      });
+    };
+
     socket.on('connect', () => {
       socket.emit('join-task', taskId);
       socket.emit('join-project', projectId);
@@ -130,12 +146,16 @@ export function useTaskRealtime(taskId: number, projectId: number | null) {
     socket.on('comment.updated', updateComment);
     socket.on('comment.deleted', deleteComment);
     socket.on('activity.created', addActivity);
+    socket.on('label.added', refreshLabels);
+    socket.on('label.removed', refreshLabels);
 
     return () => {
       socket.off('comment.created', addComment);
       socket.off('comment.updated', updateComment);
       socket.off('comment.deleted', deleteComment);
       socket.off('activity.created', addActivity);
+      socket.off('label.added', refreshLabels);
+      socket.off('label.removed', refreshLabels);
       socket.disconnect();
     };
   }, [accessToken, projectId, queryClient, taskId]);

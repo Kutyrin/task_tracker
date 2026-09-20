@@ -1,3 +1,4 @@
+import { TaskLabels } from '@/components/tasks/task-labels';
 import type { Task } from '@/lib/tasks';
 
 interface TaskDetailsProps {
@@ -82,22 +83,16 @@ export function TaskDetails({ task }: TaskDetailsProps) {
         </div>
       </dl>
 
-      {task.labels.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-sm font-semibold text-slate-950">Labels</h2>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            {task.labels.map((label) => (
-              <span
-                key={label.id}
-                className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700"
-              >
-                {label.name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      <TaskLabels
+        taskId={task.id}
+        projectId={task.projectId}
+        initialLabels={task.labels.map((label) => ({
+          id: label.id,
+          name: label.name,
+          createdAt: new Date(0).toISOString(),
+          projectId: task.projectId ?? 0,
+        }))}
+      />
     </div>
   );
 }

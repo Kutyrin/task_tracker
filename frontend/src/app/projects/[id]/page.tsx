@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useProject } from '@/hooks/projects/use-project';
+import { ProjectLabels } from '@/components/projects/project-labels';
+import { useProjectRealtime } from '@/hooks/realtime/use-project-realtime';
 import { ProjectMembers } from '@/components/projects/project-members';
 import { useProjectMembers } from '@/hooks/projects/use-project-members';
 import { AddProjectMemberForm } from '@/components/projects/add-project-member-form';
@@ -24,6 +26,8 @@ function ProjectContent({ projectId }: { projectId: number }) {
     isPending: isBoardsPending,
     isError: isBoardsError,
   } = useProjectBoards(projectId);
+
+  useProjectRealtime(projectId);
 
   if (isPending) {
     return (
@@ -185,6 +189,10 @@ function ProjectContent({ projectId }: { projectId: number }) {
             )}
           </div>
         </div>
+        {/* Labels */}
+        {(project.role === 'OWNER' || project.role === 'ADMIN') && (
+          <ProjectLabels projectId={projectId} />
+        )}
         {/* Boards */}
         <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-4">

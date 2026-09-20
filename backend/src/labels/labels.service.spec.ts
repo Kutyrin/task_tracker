@@ -603,23 +603,28 @@ describe('LabelsService', () => {
 
       const activity = {
         id: 50,
-        taskId: 100,
-        userId: 1,
         type: ActivityType.LABEL_ADDED,
         message: 'Label "Backend" added',
         metadata: {
           labelId: 10,
           labelName: 'Backend',
         },
+        createdAt: new Date('2026-09-10T10:00:00.000Z'),
+        user: {
+          id: 1,
+          email: 'user@example.com',
+        },
       };
 
       prismaMock.task.findUnique.mockResolvedValue(task);
+
       prismaMock.projectMember.findFirst.mockResolvedValue({
         id: 1,
         projectId: 1,
         userId: 1,
         role: 'MEMBER',
       });
+
       prismaMock.label.findFirst.mockResolvedValue(label);
       prismaMock.taskLabel.findUnique.mockResolvedValue(null);
 
@@ -657,6 +662,19 @@ describe('LabelsService', () => {
           metadata: {
             labelId: 10,
             labelName: 'Backend',
+          },
+        },
+        select: {
+          id: true,
+          type: true,
+          message: true,
+          metadata: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+            },
           },
         },
       });
@@ -918,23 +936,28 @@ describe('LabelsService', () => {
 
       const activity = {
         id: 51,
-        taskId: 100,
-        userId: 1,
         type: ActivityType.LABEL_REMOVED,
         message: 'Label "Backend" removed',
         metadata: {
           labelId: 10,
           labelName: 'Backend',
         },
+        createdAt: new Date('2026-09-10T11:00:00.000Z'),
+        user: {
+          id: 1,
+          email: 'user@example.com',
+        },
       };
 
       prismaMock.task.findUnique.mockResolvedValue(task);
+
       prismaMock.projectMember.findFirst.mockResolvedValue({
         id: 1,
         projectId: 1,
         userId: 1,
         role: 'MEMBER',
       });
+
       prismaMock.taskLabel.findUnique.mockResolvedValue(relation);
 
       const tx = {
@@ -987,6 +1010,19 @@ describe('LabelsService', () => {
           metadata: {
             labelId: 10,
             labelName: 'Backend',
+          },
+        },
+        select: {
+          id: true,
+          type: true,
+          message: true,
+          metadata: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+            },
           },
         },
       });
