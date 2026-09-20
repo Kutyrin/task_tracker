@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useProject } from '@/hooks/projects/use-project';
 import { ProjectLabels } from '@/components/projects/project-labels';
+import { useProjectRealtime } from '@/hooks/realtime/use-project-realtime';
 import { ProjectMembers } from '@/components/projects/project-members';
 import { useProjectMembers } from '@/hooks/projects/use-project-members';
 import { AddProjectMemberForm } from '@/components/projects/add-project-member-form';
@@ -25,6 +26,8 @@ function ProjectContent({ projectId }: { projectId: number }) {
     isPending: isBoardsPending,
     isError: isBoardsError,
   } = useProjectBoards(projectId);
+
+  useProjectRealtime(projectId);
 
   if (isPending) {
     return (
