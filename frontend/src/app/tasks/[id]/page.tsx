@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { ProtectedRoute } from '@/components/auth/protected-route';
+import { CommentsSection } from '@/components/tasks/comments-section';
 import { EditTaskForm } from '@/components/tasks/edit-task-form';
 import { TaskDetails } from '@/components/tasks/task-details';
 import { useTask } from '@/hooks/tasks/use-task';
@@ -122,6 +123,7 @@ function TaskContent({ taskId }: { taskId: number }) {
             <TaskDetails task={task} />
           )}
         </div>
+        <CommentsSection taskId={task.id} members={members ?? []} />
       </div>
     </main>
   );
