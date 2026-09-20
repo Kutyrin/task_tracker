@@ -8,6 +8,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { CommentsSection } from '@/components/tasks/comments-section';
 import { EditTaskForm } from '@/components/tasks/edit-task-form';
 import { TaskDetails } from '@/components/tasks/task-details';
+import { ActivitySection } from '@/components/tasks/activity-section';
 import { useTask } from '@/hooks/tasks/use-task';
 import { useDeleteTask } from '@/hooks/tasks/use-delete-task';
 import { useProjectMembers } from '@/hooks/projects/use-project-members';
@@ -124,6 +125,7 @@ function TaskContent({ taskId }: { taskId: number }) {
           )}
         </div>
         <CommentsSection taskId={task.id} members={members ?? []} />
+        <ActivitySection taskId={task.id} />
       </div>
     </main>
   );
