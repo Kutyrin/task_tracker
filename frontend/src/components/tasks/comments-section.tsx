@@ -13,6 +13,7 @@ import { useAppSelector } from '@/store/hooks';
 
 interface CommentsSectionProps {
   taskId: number;
+  projectId: number | null;
   members: ProjectMember[];
 }
 
@@ -173,10 +174,14 @@ function EditCommentForm({
   );
 }
 
-export function CommentsSection({ taskId, members }: CommentsSectionProps) {
+export function CommentsSection({
+  taskId,
+  projectId,
+  members,
+}: CommentsSectionProps) {
   const currentUser = useAppSelector((state) => state.auth.user);
-  
-  useTaskRealtime(taskId);
+
+  useTaskRealtime(taskId, projectId);
 
   const { data: comments, isPending, isError } = useComments(taskId);
 

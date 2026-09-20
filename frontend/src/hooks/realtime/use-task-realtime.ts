@@ -5,6 +5,7 @@ import { io } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
 
+import type { Activity } from '@/lib/activities';
 import type { Comment } from '@/lib/comments';
 import { useAppSelector } from '@/store/hooks';
 
@@ -14,12 +15,30 @@ interface DeletedCommentPayload {
   commentId: number;
 }
 
-export function useTaskRealtime(taskId: number) {
+interface ActivityCreatedPayload extends Activity {
+  task?: {
+    id: number;
+    issueNumber: number | null;
+    title: string;
+    project: {
+      key: string;
+    } | null;
+  };
+}
+
+export function useTaskRealtime(taskId: number, projectId: number | null) {
   const queryClient = useQueryClient();
   const accessToken = useAppSelector((state) => state.auth.accessToken);
 
   useEffect(() => {
-    if (!accessToken || !Number.isInteger(taskId) || taskId <= 0) {
+    if (
+      !accessToken ||
+      !Number.isInteger(taskId) ||
+      taskId <= 0 ||
+      !Number.isInteger(projectId) ||
+      projectId === null ||
+      projectId <= 0
+    ) {
       return;
     }
 
@@ -30,6 +49,10 @@ export function useTaskRealtime(taskId: number) {
     });
 
     const addComment = (comment: Comment) => {
+      if (comment.taskId !== taskId) {
+        return;
+      }
+
       queryClient.setQueryData<Comment[]>(
         ['comments', taskId],
         (currentComments) => {
@@ -47,6 +70,10 @@ export function useTaskRealtime(taskId: number) {
     };
 
     const updateComment = (comment: Comment) => {
+      if (comment.taskId !== taskId) {
+        return;
+      }
+
       queryClient.setQueryData<Comment[]>(
         ['comments', taskId],
         (currentComments) => {
@@ -69,19 +96,47 @@ export function useTaskRealtime(taskId: number) {
       );
     };
 
+    const addActivity = (activity: ActivityCreatedPayload) => {
+      if (activity.task?.id !== taskId) {
+        return;
+      }
+
+      queryClient.setQueryData<Activity[]>(
+        ['activities', taskId],
+        (currentActivities) => {
+          if (!currentActivities) {
+            return [activity];
+          }
+
+          if (
+            currentActivities.some(
+              (currentActivity) => currentActivity.id === activity.id,
+            )
+          ) {
+            return currentActivities;
+          }
+
+          return [activity, ...currentActivities];
+        },
+      );
+    };
+
     socket.on('connect', () => {
       socket.emit('join-task', taskId);
+      socket.emit('join-project', projectId);
     });
 
     socket.on('comment.created', addComment);
     socket.on('comment.updated', updateComment);
     socket.on('comment.deleted', deleteComment);
+    socket.on('activity.created', addActivity);
 
     return () => {
       socket.off('comment.created', addComment);
       socket.off('comment.updated', updateComment);
       socket.off('comment.deleted', deleteComment);
+      socket.off('activity.created', addActivity);
       socket.disconnect();
     };
-  }, [accessToken, queryClient, taskId]);
+  }, [accessToken, projectId, queryClient, taskId]);
 }

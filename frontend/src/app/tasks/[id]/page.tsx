@@ -124,7 +124,11 @@ function TaskContent({ taskId }: { taskId: number }) {
             <TaskDetails task={task} />
           )}
         </div>
-        <CommentsSection taskId={task.id} members={members ?? []} />
+        <CommentsSection
+          taskId={task.id}
+          projectId={task.projectId}
+          members={members ?? []}
+        />
         <ActivitySection taskId={task.id} />
       </div>
     </main>

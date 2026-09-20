@@ -23,7 +23,7 @@ export function ActivitySection({ taskId }: ActivitySectionProps) {
         </p>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 max-h-100 overflow-y-auto scroll-smooth pr-2">
         {isPending && (
           <p className="text-sm text-slate-500">Loading activity...</p>
         )}
