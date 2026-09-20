@@ -116,12 +116,15 @@ describe('CommentsService', () => {
 
       const activity = {
         id: 50,
-        taskId: 100,
-        userId: 1,
         type: ActivityType.COMMENT_ADDED,
         message: 'Comment added',
         metadata: {
           commentId: 10,
+        },
+        createdAt: new Date('2026-09-10T10:00:00.000Z'),
+        user: {
+          id: 1,
+          email: 'user@example.com',
         },
       };
 
@@ -189,6 +192,19 @@ describe('CommentsService', () => {
           message: 'Comment added',
           metadata: {
             commentId: 10,
+          },
+        },
+        select: {
+          id: true,
+          type: true,
+          message: true,
+          metadata: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+            },
           },
         },
       });
@@ -389,12 +405,15 @@ describe('CommentsService', () => {
 
       const activity = {
         id: 51,
-        taskId: 100,
-        userId: 1,
         type: ActivityType.COMMENT_UPDATED,
         message: 'Comment updated',
         metadata: {
           commentId: 10,
+        },
+        createdAt: new Date('2026-09-10T12:00:00.000Z'),
+        user: {
+          id: 1,
+          email: 'user@example.com',
         },
       };
 
@@ -457,6 +476,19 @@ describe('CommentsService', () => {
           message: 'Comment updated',
           metadata: {
             commentId: 10,
+          },
+        },
+        select: {
+          id: true,
+          type: true,
+          message: true,
+          metadata: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+            },
           },
         },
       });
@@ -579,12 +611,15 @@ describe('CommentsService', () => {
 
       const activity = {
         id: 52,
-        taskId: 100,
-        userId: 1,
         type: ActivityType.COMMENT_DELETED,
         message: 'Comment deleted',
         metadata: {
           commentId: 10,
+        },
+        createdAt: new Date('2026-09-10T12:00:00.000Z'),
+        user: {
+          id: 1,
+          email: 'user@example.com',
         },
       };
 
@@ -617,6 +652,19 @@ describe('CommentsService', () => {
           message: 'Comment deleted',
           metadata: {
             commentId: 10,
+          },
+        },
+        select: {
+          id: true,
+          type: true,
+          message: true,
+          metadata: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+            },
           },
         },
       });
@@ -661,14 +709,26 @@ describe('CommentsService', () => {
         userId: 2,
       });
 
+      const activity = {
+        id: 52,
+        type: ActivityType.COMMENT_DELETED,
+        message: 'Comment deleted',
+        metadata: {
+          commentId: 10,
+        },
+        createdAt: new Date('2026-09-10T12:00:00.000Z'),
+        user: {
+          id: 1,
+          email: 'user@example.com',
+        },
+      };
+
       const tx = {
         comment: {
           delete: jest.fn().mockResolvedValue({}),
         },
         activity: {
-          create: jest.fn().mockResolvedValue({
-            type: ActivityType.COMMENT_DELETED,
-          }),
+          create: jest.fn().mockResolvedValue(activity),
         },
       };
 
@@ -694,14 +754,26 @@ describe('CommentsService', () => {
         userId: 2,
       });
 
+      const activity = {
+        id: 52,
+        type: ActivityType.COMMENT_DELETED,
+        message: 'Comment deleted',
+        metadata: {
+          commentId: 10,
+        },
+        createdAt: new Date('2026-09-10T12:00:00.000Z'),
+        user: {
+          id: 1,
+          email: 'user@example.com',
+        },
+      };
+
       const tx = {
         comment: {
           delete: jest.fn().mockResolvedValue({}),
         },
         activity: {
-          create: jest.fn().mockResolvedValue({
-            type: ActivityType.COMMENT_DELETED,
-          }),
+          create: jest.fn().mockResolvedValue(activity),
         },
       };
 
