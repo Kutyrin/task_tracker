@@ -85,7 +85,7 @@ export function BoardTaskCard({ task }: BoardTaskCardProps) {
     transition,
     isDragging,
   } = useSortable({
-    id: task.id,
+    id: `task-${task.id}`,
     data: {
       type: 'task',
       task,
