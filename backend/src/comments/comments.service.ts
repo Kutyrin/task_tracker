@@ -4,12 +4,26 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { ActivityType, ProjectRole } from '@prisma/client';
+import { ActivityType, Prisma, ProjectRole } from '@prisma/client';
 
 import { RealtimeService } from '../realtime/realtime.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+
+const activitySelect = {
+  id: true,
+  type: true,
+  message: true,
+  metadata: true,
+  createdAt: true,
+  user: {
+    select: {
+      id: true,
+      email: true,
+    },
+  },
+} satisfies Prisma.ActivitySelect;
 
 @Injectable()
 export class CommentsService {
@@ -100,6 +114,7 @@ export class CommentsService {
             commentId: comment.id,
           },
         },
+        select: activitySelect,
       });
 
       return {
@@ -215,6 +230,7 @@ export class CommentsService {
             commentId: comment.id,
           },
         },
+        select: activitySelect,
       });
 
       return {
@@ -288,6 +304,7 @@ export class CommentsService {
             commentId: comment.id,
           },
         },
+        select: activitySelect,
       });
     });
 
