@@ -7,12 +7,18 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import type { Activity } from '@/lib/activities';
 import type { Comment } from '@/lib/comments';
+import type { Task } from '@/lib/tasks';
+import type { TaskLabel } from '@/lib/labels';
 import { useAppSelector } from '@/store/hooks';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 interface DeletedCommentPayload {
   commentId: number;
+}
+
+interface DeletedTaskPayload {
+  taskId: number;
 }
 
 interface ActivityCreatedPayload extends Activity {
@@ -32,7 +38,11 @@ interface TaskLabelRealtimePayload {
   taskId: number;
 }
 
-export function useTaskRealtime(taskId: number, projectId: number | null) {
+export function useTaskRealtime(
+  taskId: number,
+  projectId: number | null,
+  onTaskDeleted?: () => void,
+) {
   const queryClient = useQueryClient();
   const accessToken = useAppSelector((state) => state.auth.accessToken);
 
@@ -102,6 +112,32 @@ export function useTaskRealtime(taskId: number, projectId: number | null) {
       );
     };
 
+    const updateTask = (task: Task) => {
+      if (task.id !== taskId) {
+        return;
+      }
+
+      queryClient.setQueryData<Task>(['tasks', taskId], task);
+    };
+
+    const deleteTask = ({ taskId: deletedTaskId }: DeletedTaskPayload) => {
+      if (deletedTaskId !== taskId) {
+        return;
+      }
+
+      queryClient.removeQueries({
+        queryKey: ['tasks', taskId],
+        exact: true,
+      });
+
+      queryClient.removeQueries({
+        queryKey: ['labels', 'tasks', taskId],
+        exact: true,
+      });
+
+      onTaskDeleted?.();
+    };
+
     const addActivity = (activity: ActivityCreatedPayload) => {
       if (activity.task?.id !== taskId) {
         return;
@@ -127,13 +163,97 @@ export function useTaskRealtime(taskId: number, projectId: number | null) {
       );
     };
 
-    const refreshLabels = (label: TaskLabelRealtimePayload) => {
+    const addLabel = (label: TaskLabelRealtimePayload) => {
       if (label.taskId !== taskId) {
         return;
       }
 
+      const taskLabel: TaskLabel = {
+        id: label.id,
+        name: label.name,
+        createdAt: new Date().toISOString(),
+        projectId,
+      };
+
+      queryClient.setQueryData<TaskLabel[]>(
+        ['labels', 'tasks', taskId],
+        (currentLabels) => {
+          if (currentLabels?.some((item) => item.id === label.id)) {
+            return currentLabels;
+          }
+
+          return [...(currentLabels ?? []), taskLabel].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          );
+        },
+      );
+
+      queryClient.setQueryData<Task>(['tasks', taskId], (currentTask) => {
+        if (!currentTask) {
+          return currentTask;
+        }
+
+        if (currentTask.labels.some((item) => item.id === label.id)) {
+          return currentTask;
+        }
+
+        return {
+          ...currentTask,
+          labels: [
+            ...currentTask.labels,
+            {
+              id: label.id,
+              name: label.name,
+            },
+          ].sort((a, b) => a.name.localeCompare(b.name)),
+        };
+      });
+
       void queryClient.invalidateQueries({
         queryKey: ['labels', 'tasks', taskId],
+      });
+
+      void queryClient.invalidateQueries({
+        queryKey: ['tasks', taskId],
+      });
+
+      void queryClient.invalidateQueries({
+        queryKey: ['tasks'],
+      });
+    };
+
+    const removeLabel = (label: TaskLabelRealtimePayload) => {
+      if (label.taskId !== taskId) {
+        return;
+      }
+
+      queryClient.setQueryData<TaskLabel[]>(
+        ['labels', 'tasks', taskId],
+        (currentLabels) =>
+          currentLabels?.filter((item) => item.id !== label.id) ?? [],
+      );
+
+      queryClient.setQueryData<Task>(['tasks', taskId], (currentTask) => {
+        if (!currentTask) {
+          return currentTask;
+        }
+
+        return {
+          ...currentTask,
+          labels: currentTask.labels.filter((item) => item.id !== label.id),
+        };
+      });
+
+      void queryClient.invalidateQueries({
+        queryKey: ['labels', 'tasks', taskId],
+      });
+
+      void queryClient.invalidateQueries({
+        queryKey: ['tasks', taskId],
+      });
+
+      void queryClient.invalidateQueries({
+        queryKey: ['tasks'],
       });
     };
 
@@ -145,18 +265,31 @@ export function useTaskRealtime(taskId: number, projectId: number | null) {
     socket.on('comment.created', addComment);
     socket.on('comment.updated', updateComment);
     socket.on('comment.deleted', deleteComment);
+
+    socket.on('task.updated', updateTask);
+    socket.on('task.moved', updateTask);
+    socket.on('task.deleted', deleteTask);
+
     socket.on('activity.created', addActivity);
-    socket.on('label.added', refreshLabels);
-    socket.on('label.removed', refreshLabels);
+
+    socket.on('label.added', addLabel);
+    socket.on('label.removed', removeLabel);
 
     return () => {
       socket.off('comment.created', addComment);
       socket.off('comment.updated', updateComment);
       socket.off('comment.deleted', deleteComment);
+
+      socket.off('task.updated', updateTask);
+      socket.off('task.moved', updateTask);
+      socket.off('task.deleted', deleteTask);
+
       socket.off('activity.created', addActivity);
-      socket.off('label.added', refreshLabels);
-      socket.off('label.removed', refreshLabels);
+
+      socket.off('label.added', addLabel);
+      socket.off('label.removed', removeLabel);
+
       socket.disconnect();
     };
-  }, [accessToken, projectId, queryClient, taskId]);
+  }, [accessToken, projectId, queryClient, taskId, onTaskDeleted]);
 }

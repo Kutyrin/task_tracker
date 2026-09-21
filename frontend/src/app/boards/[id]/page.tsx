@@ -23,6 +23,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { BoardTaskCardOverlay } from '@/components/boards/board-task-card';
 import { BoardTaskColumn } from '@/components/boards/board-task-column';
 import { BoardColumnManager } from '@/components/boards/board-column-manager';
+import { useBoardRealtime } from '@/hooks/realtime/use-board-realtime';
 import { CreateTaskForm } from '@/components/boards/create-task-form';
 import { useBoard } from '@/hooks/boards/use-board';
 import { useMoveColumn } from '@/hooks/boards/use-move-column';
@@ -205,6 +206,8 @@ function BoardContent({ boardId }: { boardId: number }) {
   const { data: board, isPending, isError } = useBoard(boardId);
   const { data: project } = useProject(board?.projectId ?? 0);
   const { data: members } = useProjectMembers(board?.projectId ?? 0);
+
+  useBoardRealtime(boardId, board?.projectId ?? null);
 
   const moveTaskMutation = useMoveTask(boardId);
   const moveColumnMutation = useMoveColumn(boardId);
