@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { useCreateComment } from '@/hooks/comments/use-create-comment';
 import { useDeleteComment } from '@/hooks/comments/use-delete-comment';
 import { useUpdateComment } from '@/hooks/comments/use-update-comment';
-import { useTaskRealtime } from '@/hooks/realtime/use-task-realtime';
 import { useComments } from '@/hooks/comments/use-comments';
 import type { Comment } from '@/lib/comments';
 import type { ProjectMember } from '@/lib/projects';
@@ -13,7 +12,6 @@ import { useAppSelector } from '@/store/hooks';
 
 interface CommentsSectionProps {
   taskId: number;
-  projectId: number | null;
   members: ProjectMember[];
 }
 
@@ -176,12 +174,9 @@ function EditCommentForm({
 
 export function CommentsSection({
   taskId,
-  projectId,
   members,
 }: CommentsSectionProps) {
   const currentUser = useAppSelector((state) => state.auth.user);
-
-  useTaskRealtime(taskId, projectId);
 
   const { data: comments, isPending, isError } = useComments(taskId);
 

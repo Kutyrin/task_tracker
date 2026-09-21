@@ -304,6 +304,12 @@ export class LabelsService {
       taskId,
     });
 
+    this.realtimeService.emitToProject(task.projectId!, 'label.added', {
+      id: label.id,
+      name: label.name,
+      taskId,
+    });
+
     this.realtimeService.emitToProject(task.projectId!, 'activity.created', {
       ...activity,
       task: {
@@ -396,6 +402,12 @@ export class LabelsService {
     });
 
     this.realtimeService.emitToTask(taskId, 'label.removed', {
+      id: relation.label.id,
+      name: relation.label.name,
+      taskId,
+    });
+
+    this.realtimeService.emitToProject(task.projectId!, 'label.removed', {
       id: relation.label.id,
       name: relation.label.name,
       taskId,

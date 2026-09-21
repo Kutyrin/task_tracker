@@ -4,10 +4,14 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
 
+import { useDeleteTask } from '@/hooks/tasks/use-delete-task';
 import type { Task } from '@/lib/tasks';
 
 interface BoardTaskCardProps {
   task: Task;
+  showDelete?: boolean;
+  onDelete?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  isDeletePending?: boolean;
 }
 
 const priorityLabels = {
@@ -23,21 +27,45 @@ const issueTypeLabels = {
   EPIC: 'Epic',
 } satisfies Record<Task['issueType'], string>;
 
-interface TaskCardContentProps {
-  task: Task;
-}
-
-function TaskCardContent({ task }: TaskCardContentProps) {
+function TaskCardContent({
+  task,
+  showDelete = false,
+  onDelete,
+  isDeletePending = false,
+}: BoardTaskCardProps) {
   return (
     <>
       <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold text-slate-500">
+        <Link
+          href={`/tasks/${task.id}`}
+          className="min-w-0 text-xs font-semibold text-slate-500 hover:text-slate-900"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
           {task.issueKey ?? `#${task.id}`}
-        </span>
+        </Link>
 
-        <span className="text-xs font-medium text-slate-500">
-          {priorityLabels[task.priority]}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-xs font-medium text-slate-500">
+            {priorityLabels[task.priority]}
+          </span>
+
+          {showDelete && (
+            <button
+              type="button"
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={onDelete}
+              disabled={isDeletePending}
+              className="rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={`Delete ${task.issueKey ?? task.title}`}
+            >
+              {isDeletePending ? 'Deleting...' : 'Delete'}
+            </button>
+          )}
+        </div>
       </div>
 
       <h3 className="mt-2 text-sm font-medium text-slate-950">{task.title}</h3>
@@ -92,6 +120,27 @@ export function BoardTaskCard({ task }: BoardTaskCardProps) {
     },
   });
 
+  const deleteTaskMutation = useDeleteTask(task.column?.boardId ?? 0, task.id);
+
+  const handleDelete = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const confirmed = window.confirm(
+      `Delete "${task.issueKey ?? task.title}"? This action cannot be undone.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteTaskMutation.mutateAsync();
+    } catch {
+      return;
+    }
+  };
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -107,9 +156,16 @@ export function BoardTaskCard({ task }: BoardTaskCardProps) {
         isDragging ? 'opacity-30' : ''
       }`}
     >
-      <Link href={`/tasks/${task.id}`} className="block">
-        <TaskCardContent task={task} />
-      </Link>
+      <TaskCardContent
+        task={task}
+        showDelete
+        onDelete={handleDelete}
+        isDeletePending={deleteTaskMutation.isPending}
+      />
+
+      {deleteTaskMutation.isError && (
+        <p className="mt-2 text-xs text-red-600">Failed to delete issue.</p>
+      )}
     </article>
   );
 }

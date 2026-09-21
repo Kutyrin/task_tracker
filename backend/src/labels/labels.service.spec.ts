@@ -691,6 +691,16 @@ describe('LabelsService', () => {
 
       expect(realtimeServiceMock.emitToProject).toHaveBeenCalledWith(
         1,
+        'label.added',
+        {
+          id: 10,
+          name: 'Backend',
+          taskId: 100,
+        },
+      );
+
+      expect(realtimeServiceMock.emitToProject).toHaveBeenCalledWith(
+        1,
         'activity.created',
         {
           ...activity,
@@ -1029,6 +1039,16 @@ describe('LabelsService', () => {
 
       expect(realtimeServiceMock.emitToTask).toHaveBeenCalledWith(
         100,
+        'label.removed',
+        {
+          id: 10,
+          name: 'Backend',
+          taskId: 100,
+        },
+      );
+
+      expect(realtimeServiceMock.emitToProject).toHaveBeenCalledWith(
+        1,
         'label.removed',
         {
           id: 10,

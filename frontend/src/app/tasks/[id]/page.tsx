@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { CommentsSection } from '@/components/tasks/comments-section';
 import { EditTaskForm } from '@/components/tasks/edit-task-form';
 import { TaskDetails } from '@/components/tasks/task-details';
+import { useTaskRealtime } from '@/hooks/realtime/use-task-realtime';
 import { ActivitySection } from '@/components/tasks/activity-section';
 import { useTask } from '@/hooks/tasks/use-task';
 import { useDeleteTask } from '@/hooks/tasks/use-delete-task';
@@ -17,6 +18,22 @@ function TaskContent({ taskId }: { taskId: number }) {
   const router = useRouter();
   const { data: task, isPending, isError } = useTask(taskId);
   const { data: members } = useProjectMembers(task?.projectId ?? 0);
+
+  const taskBoardId = task?.column?.boardId ?? null;
+  const taskProjectId = task?.projectId ?? null;
+
+  const handleRemoteDelete = useCallback(() => {
+    if (taskBoardId) {
+      router.replace(`/boards/${taskBoardId}`);
+      return;
+    }
+
+    if (taskProjectId) {
+      router.replace(`/projects/${taskProjectId}`);
+    }
+  }, [router, taskBoardId, taskProjectId]);
+
+  useTaskRealtime(taskId, taskProjectId, handleRemoteDelete);
 
   const [isEditing, setIsEditing] = useState(false);
   const deleteTaskMutation = useDeleteTask(task?.column?.boardId ?? 0, taskId);
@@ -126,7 +143,6 @@ function TaskContent({ taskId }: { taskId: number }) {
         </div>
         <CommentsSection
           taskId={task.id}
-          projectId={task.projectId}
           members={members ?? []}
         />
         <ActivitySection taskId={task.id} />
