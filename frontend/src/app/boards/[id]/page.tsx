@@ -17,12 +17,13 @@ import {
 } from '@dnd-kit/sortable';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { BoardTaskCardOverlay } from '@/components/boards/board-task-card';
 import { BoardTaskColumn } from '@/components/boards/board-task-column';
 import { BoardColumnManager } from '@/components/boards/board-column-manager';
+import { BoardTaskFilters } from '@/components/boards/board-task-filters';
 import { useBoardRealtime } from '@/hooks/realtime/use-board-realtime';
 import { CreateTaskForm } from '@/components/boards/create-task-form';
 import { useBoard } from '@/hooks/boards/use-board';
@@ -215,6 +216,61 @@ function BoardContent({ boardId }: { boardId: number }) {
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
 
   const [activeColumnId, setActiveColumnId] = useState<number | null>(null);
+
+  const [search, setSearch] = useState('');
+  const [filterColumnId, setFilterColumnId] = useState<number | null>(null);
+  const [filterIssueType, setFilterIssueType] = useState<
+    'ALL' | Task['issueType']
+  >('ALL');
+  const [filterPriority, setFilterPriority] = useState<
+    'ALL' | Task['priority']
+  >('ALL');
+
+  const hasActiveFilters =
+    search.trim() !== '' ||
+    filterColumnId !== null ||
+    filterIssueType !== 'ALL' ||
+    filterPriority !== 'ALL';
+
+  const filteredColumns = useMemo(() => {
+    if (!board) {
+      return [];
+    }
+
+    const normalizedSearch = search.trim().toLowerCase();
+
+    return board.columns.map((column) => {
+      const tasks = column.tasks.filter((task) => {
+        const matchesSearch =
+          normalizedSearch === '' ||
+          [task.issueKey, task.title, task.description].some((value) =>
+            value?.toLowerCase().includes(normalizedSearch),
+          );
+
+        const matchesColumn =
+          filterColumnId === null || column.id === filterColumnId;
+
+        const matchesIssueType =
+          filterIssueType === 'ALL' || task.issueType === filterIssueType;
+
+        const matchesPriority =
+          filterPriority === 'ALL' || task.priority === filterPriority;
+
+        return (
+          matchesSearch && matchesColumn && matchesIssueType && matchesPriority
+        );
+      });
+
+      return {
+        ...column,
+        tasks,
+        _count: {
+          ...column._count,
+          tasks: tasks.length,
+        },
+      };
+    });
+  }, [board, filterColumnId, filterIssueType, filterPriority, search]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -483,6 +539,32 @@ function BoardContent({ boardId }: { boardId: number }) {
           />
         </div>
 
+        <div>
+          <BoardTaskFilters
+            search={search}
+            columnId={filterColumnId}
+            issueType={filterIssueType}
+            priority={filterPriority}
+            columns={board.columns
+              .slice()
+              .sort((a, b) => a.position - b.position)
+              .map((column) => ({
+                id: column.id,
+                name: column.name,
+              }))}
+            onSearchChange={setSearch}
+            onColumnChange={setFilterColumnId}
+            onIssueTypeChange={setFilterIssueType}
+            onPriorityChange={setFilterPriority}
+            onReset={() => {
+              setSearch('');
+              setFilterColumnId(null);
+              setFilterIssueType('ALL');
+              setFilterPriority('ALL');
+            }}
+          />
+        </div>
+
         <DndContext
           sensors={sensors}
           collisionDetection={collisionDetectionStrategy}
@@ -499,11 +581,16 @@ function BoardContent({ boardId }: { boardId: number }) {
               strategy={horizontalListSortingStrategy}
             >
               <div className="grid min-w-225 grid-cols-4 gap-4">
-                {board.columns
+                {filteredColumns
                   .slice()
                   .sort((a, b) => a.position - b.position)
                   .map((column) => (
-                    <BoardTaskColumn key={column.id} column={column} />
+                    <BoardTaskColumn
+                      key={column.id}
+                      column={column}
+                      disableTaskDrag={hasActiveFilters}
+                      hasActiveFilters={hasActiveFilters}
+                    />
                   ))}
               </div>
             </SortableContext>

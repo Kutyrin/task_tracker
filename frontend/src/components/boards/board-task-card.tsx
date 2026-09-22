@@ -12,6 +12,7 @@ interface BoardTaskCardProps {
   showDelete?: boolean;
   onDelete?: (event: React.MouseEvent<HTMLButtonElement>) => void;
   isDeletePending?: boolean;
+  disableDrag?: boolean;
 }
 
 const priorityLabels = {
@@ -104,7 +105,10 @@ function TaskCardContent({
   );
 }
 
-export function BoardTaskCard({ task }: BoardTaskCardProps) {
+export function BoardTaskCard({
+  task,
+  disableDrag = false,
+}: BoardTaskCardProps) {
   const {
     attributes,
     listeners,
@@ -114,6 +118,7 @@ export function BoardTaskCard({ task }: BoardTaskCardProps) {
     isDragging,
   } = useSortable({
     id: `task-${task.id}`,
+    disabled: disableDrag,
     data: {
       type: 'task',
       task,
