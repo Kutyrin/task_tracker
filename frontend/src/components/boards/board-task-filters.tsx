@@ -10,7 +10,17 @@ interface BoardTaskFiltersProps {
   columnId: number | null;
   issueType: IssueTypeFilter;
   priority: PriorityFilter;
+  assigneeId: number | 'UNASSIGNED' | null;
+  labelId: number | null;
   columns: {
+    id: number;
+    name: string;
+  }[];
+  members: {
+    id: number;
+    email: string;
+  }[];
+  labels: {
     id: number;
     name: string;
   }[];
@@ -18,6 +28,8 @@ interface BoardTaskFiltersProps {
   onColumnChange: (value: number | null) => void;
   onIssueTypeChange: (value: IssueTypeFilter) => void;
   onPriorityChange: (value: PriorityFilter) => void;
+  onAssigneeChange: (value: number | 'UNASSIGNED' | null) => void;
+  onLabelChange: (value: number | null) => void;
   onReset: () => void;
 }
 
@@ -45,23 +57,31 @@ export function BoardTaskFilters({
   columnId,
   issueType,
   priority,
+  assigneeId,
+  labelId,
   columns,
+  members,
+  labels,
   onSearchChange,
   onColumnChange,
   onIssueTypeChange,
   onPriorityChange,
+  onAssigneeChange,
+  onLabelChange,
   onReset,
 }: BoardTaskFiltersProps) {
   const hasActiveFilters =
     search.trim() !== '' ||
     columnId !== null ||
     issueType !== 'ALL' ||
-    priority !== 'ALL';
+    priority !== 'ALL' ||
+    assigneeId !== null ||
+    labelId !== null;
 
   return (
     <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <div className="xl:col-span-2">
           <label
             htmlFor="board-task-search"
             className="mb-1.5 block text-xs font-medium text-slate-600"
@@ -137,25 +157,64 @@ export function BoardTaskFilters({
 
         <div>
           <label
-            htmlFor="board-task-priority"
+            htmlFor="board-task-assignee"
             className="mb-1.5 block text-xs font-medium text-slate-600"
           >
-            Priority
+            Assignee
           </label>
 
           <select
-            id="board-task-priority"
-            value={priority}
-            onChange={(event) =>
-              onPriorityChange(event.target.value as PriorityFilter)
-            }
+            id="board-task-assignee"
+            value={assigneeId ?? 'ALL'}
+            onChange={(event) => {
+              const value = event.target.value;
+
+              onAssigneeChange(
+                value === 'ALL'
+                  ? null
+                  : value === 'UNASSIGNED'
+                    ? 'UNASSIGNED'
+                    : Number(value),
+              );
+            }}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
           >
-            <option value="ALL">All priorities</option>
+            <option value="ALL">All assignees</option>
+            <option value="UNASSIGNED">Unassigned</option>
 
-            {priorityOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+            {members.map((member) => (
+              <option key={member.id} value={member.id}>
+                {member.email}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label
+            htmlFor="board-task-label"
+            className="mb-1.5 block text-xs font-medium text-slate-600"
+          >
+            Label
+          </label>
+
+          <select
+            id="board-task-label"
+            value={labelId ?? 'ALL'}
+            onChange={(event) => {
+              onLabelChange(
+                event.target.value === 'ALL'
+                  ? null
+                  : Number(event.target.value),
+              );
+            }}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+          >
+            <option value="ALL">All labels</option>
+
+            {labels.map((label) => (
+              <option key={label.id} value={label.id}>
+                {label.name}
               </option>
             ))}
           </select>

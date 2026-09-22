@@ -25,6 +25,7 @@ import { BoardTaskColumn } from '@/components/boards/board-task-column';
 import { BoardColumnManager } from '@/components/boards/board-column-manager';
 import { BoardTaskFilters } from '@/components/boards/board-task-filters';
 import { useBoardRealtime } from '@/hooks/realtime/use-board-realtime';
+import { useProjectLabels } from '@/hooks/labels/use-project-labels';
 import { CreateTaskForm } from '@/components/boards/create-task-form';
 import { useBoard } from '@/hooks/boards/use-board';
 import { useMoveColumn } from '@/hooks/boards/use-move-column';
@@ -207,6 +208,7 @@ function BoardContent({ boardId }: { boardId: number }) {
   const { data: board, isPending, isError } = useBoard(boardId);
   const { data: project } = useProject(board?.projectId ?? 0);
   const { data: members } = useProjectMembers(board?.projectId ?? 0);
+  const { data: labels } = useProjectLabels(board?.projectId ?? 0);
 
   useBoardRealtime(boardId, board?.projectId ?? null);
 
@@ -225,12 +227,18 @@ function BoardContent({ boardId }: { boardId: number }) {
   const [filterPriority, setFilterPriority] = useState<
     'ALL' | Task['priority']
   >('ALL');
+  const [filterAssigneeId, setFilterAssigneeId] = useState<
+    number | 'UNASSIGNED' | null
+  >(null);
+  const [filterLabelId, setFilterLabelId] = useState<number | null>(null);
 
   const hasActiveFilters =
     search.trim() !== '' ||
     filterColumnId !== null ||
     filterIssueType !== 'ALL' ||
-    filterPriority !== 'ALL';
+    filterPriority !== 'ALL' ||
+    filterAssigneeId !== null ||
+    filterLabelId !== null;
 
   const filteredColumns = useMemo(() => {
     if (!board) {
@@ -256,8 +264,23 @@ function BoardContent({ boardId }: { boardId: number }) {
         const matchesPriority =
           filterPriority === 'ALL' || task.priority === filterPriority;
 
+        const matchesAssignee =
+          filterAssigneeId === null ||
+          (filterAssigneeId === 'UNASSIGNED'
+            ? task.assigneeId === null
+            : task.assigneeId === filterAssigneeId);
+
+        const matchesLabel =
+          filterLabelId === null ||
+          task.labels.some((label) => label.id === filterLabelId);
+
         return (
-          matchesSearch && matchesColumn && matchesIssueType && matchesPriority
+          matchesSearch &&
+          matchesColumn &&
+          matchesIssueType &&
+          matchesPriority &&
+          matchesAssignee &&
+          matchesLabel
         );
       });
 
@@ -270,7 +293,15 @@ function BoardContent({ boardId }: { boardId: number }) {
         },
       };
     });
-  }, [board, filterColumnId, filterIssueType, filterPriority, search]);
+  }, [
+    board,
+    filterAssigneeId,
+    filterColumnId,
+    filterIssueType,
+    filterLabelId,
+    filterPriority,
+    search,
+  ]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -545,6 +576,8 @@ function BoardContent({ boardId }: { boardId: number }) {
             columnId={filterColumnId}
             issueType={filterIssueType}
             priority={filterPriority}
+            assigneeId={filterAssigneeId}
+            labelId={filterLabelId}
             columns={board.columns
               .slice()
               .sort((a, b) => a.position - b.position)
@@ -552,15 +585,31 @@ function BoardContent({ boardId }: { boardId: number }) {
                 id: column.id,
                 name: column.name,
               }))}
+            members={
+              members?.map((member) => ({
+                id: member.user.id,
+                email: member.user.email,
+              })) ?? []
+            }
+            labels={
+              labels?.map((label) => ({
+                id: label.id,
+                name: label.name,
+              })) ?? []
+            }
             onSearchChange={setSearch}
             onColumnChange={setFilterColumnId}
             onIssueTypeChange={setFilterIssueType}
             onPriorityChange={setFilterPriority}
+            onAssigneeChange={setFilterAssigneeId}
+            onLabelChange={setFilterLabelId}
             onReset={() => {
               setSearch('');
               setFilterColumnId(null);
               setFilterIssueType('ALL');
               setFilterPriority('ALL');
+              setFilterAssigneeId(null);
+              setFilterLabelId(null);
             }}
           />
         </div>
