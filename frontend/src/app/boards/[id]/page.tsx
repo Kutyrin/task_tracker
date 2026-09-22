@@ -32,7 +32,7 @@ import { useMoveColumn } from '@/hooks/boards/use-move-column';
 import { useProject } from '@/hooks/projects/use-project';
 import { useProjectMembers } from '@/hooks/projects/use-project-members';
 import { useMoveTask } from '@/hooks/tasks/use-move-task';
-import type { Task } from '@/lib/tasks';
+import type { SortOrder, Task, TaskSortBy } from '@/lib/tasks';
 
 function calculateTaskPosition(
   tasks: Task[],
@@ -204,6 +204,57 @@ function BoardColumnDragOverlay({
   );
 }
 
+function compareTasks(first: Task, second: Task, sortBy: TaskSortBy): number {
+  switch (sortBy) {
+    case 'priority': {
+      const priorityOrder: Record<Task['priority'], number> = {
+        LOW: 1,
+        MEDIUM: 2,
+        HIGH: 3,
+      };
+
+      return priorityOrder[first.priority] - priorityOrder[second.priority];
+    }
+
+    case 'createdAt':
+      return (
+        new Date(first.createdAt).getTime() -
+        new Date(second.createdAt).getTime()
+      );
+
+    case 'updatedAt':
+      return (
+        new Date(first.updatedAt).getTime() -
+        new Date(second.updatedAt).getTime()
+      );
+
+    case 'dueDate': {
+      if (!first.dueDate && !second.dueDate) {
+        return 0;
+      }
+
+      if (!first.dueDate) {
+        return 1;
+      }
+
+      if (!second.dueDate) {
+        return -1;
+      }
+
+      return (
+        new Date(first.dueDate).getTime() - new Date(second.dueDate).getTime()
+      );
+    }
+
+    case 'title':
+      return first.title.localeCompare(second.title);
+
+    case 'position':
+    default:
+      return first.position - second.position;
+  }
+}
+
 function BoardContent({ boardId }: { boardId: number }) {
   const { data: board, isPending, isError } = useBoard(boardId);
   const { data: project } = useProject(board?.projectId ?? 0);
@@ -231,6 +282,8 @@ function BoardContent({ boardId }: { boardId: number }) {
     number | 'UNASSIGNED' | null
   >(null);
   const [filterLabelId, setFilterLabelId] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<TaskSortBy>('position');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
   const hasActiveFilters =
     search.trim() !== '' ||
@@ -239,6 +292,9 @@ function BoardContent({ boardId }: { boardId: number }) {
     filterPriority !== 'ALL' ||
     filterAssigneeId !== null ||
     filterLabelId !== null;
+
+  const isTaskDragDisabled =
+    hasActiveFilters || sortBy !== 'position' || sortOrder !== 'asc';
 
   const filteredColumns = useMemo(() => {
     if (!board) {
@@ -284,12 +340,22 @@ function BoardContent({ boardId }: { boardId: number }) {
         );
       });
 
+      const sortedTasks = tasks.slice().sort((first, second) => {
+        const result = compareTasks(first, second, sortBy);
+
+        if (result !== 0) {
+          return sortOrder === 'asc' ? result : -result;
+        }
+
+        return first.id - second.id;
+      });
+
       return {
         ...column,
-        tasks,
+        tasks: sortedTasks,
         _count: {
           ...column._count,
-          tasks: tasks.length,
+          tasks: sortedTasks.length,
         },
       };
     });
@@ -301,6 +367,8 @@ function BoardContent({ boardId }: { boardId: number }) {
     filterLabelId,
     filterPriority,
     search,
+    sortBy,
+    sortOrder,
   ]);
 
   const sensors = useSensors(
@@ -610,7 +678,13 @@ function BoardContent({ boardId }: { boardId: number }) {
               setFilterPriority('ALL');
               setFilterAssigneeId(null);
               setFilterLabelId(null);
+              setSortBy('position');
+              setSortOrder('asc');
             }}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortByChange={setSortBy}
+            onSortOrderChange={setSortOrder}
           />
         </div>
 
@@ -637,8 +711,9 @@ function BoardContent({ boardId }: { boardId: number }) {
                     <BoardTaskColumn
                       key={column.id}
                       column={column}
-                      disableTaskDrag={hasActiveFilters}
+                      disableTaskDrag={isTaskDragDisabled}
                       hasActiveFilters={hasActiveFilters}
+                      sortTasksByPosition={sortBy === 'position'}
                     />
                   ))}
               </div>

@@ -1,9 +1,21 @@
 'use client';
 
-import type { Task } from '@/lib/tasks';
+import type { Task, TaskSortBy, SortOrder } from '@/lib/tasks';
 
 type IssueTypeFilter = 'ALL' | Task['issueType'];
 type PriorityFilter = 'ALL' | Task['priority'];
+
+const sortOptions = [
+  { value: 'position', label: 'Board position' },
+  { value: 'priority', label: 'Priority' },
+  { value: 'createdAt', label: 'Created date' },
+  { value: 'updatedAt', label: 'Updated date' },
+  { value: 'dueDate', label: 'Due date' },
+  { value: 'title', label: 'Title' },
+] satisfies {
+  value: TaskSortBy;
+  label: string;
+}[];
 
 interface BoardTaskFiltersProps {
   search: string;
@@ -31,6 +43,10 @@ interface BoardTaskFiltersProps {
   onAssigneeChange: (value: number | 'UNASSIGNED' | null) => void;
   onLabelChange: (value: number | null) => void;
   onReset: () => void;
+  sortBy: TaskSortBy;
+  sortOrder: SortOrder;
+  onSortByChange: (value: TaskSortBy) => void;
+  onSortOrderChange: (value: SortOrder) => void;
 }
 
 const issueTypeOptions = [
@@ -69,6 +85,10 @@ export function BoardTaskFilters({
   onAssigneeChange,
   onLabelChange,
   onReset,
+  sortBy,
+  sortOrder,
+  onSortByChange,
+  onSortOrderChange,
 }: BoardTaskFiltersProps) {
   const hasActiveFilters =
     search.trim() !== '' ||
@@ -80,7 +100,7 @@ export function BoardTaskFilters({
 
   return (
     <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-10">
         <div className="xl:col-span-2">
           <label
             htmlFor="board-task-search"
@@ -157,6 +177,32 @@ export function BoardTaskFilters({
 
         <div>
           <label
+            htmlFor="board-task-priority"
+            className="mb-1.5 block text-xs font-medium text-slate-600"
+          >
+            Priority
+          </label>
+
+          <select
+            id="board-task-priority"
+            value={priority}
+            onChange={(event) =>
+              onPriorityChange(event.target.value as PriorityFilter)
+            }
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+          >
+            <option value="ALL">All priorities</option>
+
+            {priorityOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label
             htmlFor="board-task-assignee"
             className="mb-1.5 block text-xs font-medium text-slate-600"
           >
@@ -217,6 +263,51 @@ export function BoardTaskFilters({
                 {label.name}
               </option>
             ))}
+          </select>
+        </div>
+
+        <div>
+          <label
+            htmlFor="board-task-sort"
+            className="mb-1.5 block text-xs font-medium text-slate-600"
+          >
+            Sort by
+          </label>
+
+          <select
+            id="board-task-sort"
+            value={sortBy}
+            onChange={(event) =>
+              onSortByChange(event.target.value as TaskSortBy)
+            }
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+          >
+            {sortOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label
+            htmlFor="board-task-sort-order"
+            className="mb-1.5 block text-xs font-medium text-slate-600"
+          >
+            Order
+          </label>
+
+          <select
+            id="board-task-sort-order"
+            value={sortOrder}
+            onChange={(event) =>
+              onSortOrderChange(event.target.value as SortOrder)
+            }
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+          >
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
           </select>
         </div>
       </div>

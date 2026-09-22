@@ -19,6 +19,7 @@ interface BoardTaskColumnProps {
   column: BoardDetailsColumn;
   disableTaskDrag?: boolean;
   hasActiveFilters?: boolean;
+  sortTasksByPosition?: boolean;
 }
 
 function getTaskId(id: string | number | undefined) {
@@ -53,6 +54,7 @@ export function BoardTaskColumn({
   column,
   disableTaskDrag = false,
   hasActiveFilters = false,
+  sortTasksByPosition = true,
 }: BoardTaskColumnProps) {
   const { active, over } = useDndContext();
 
@@ -80,9 +82,9 @@ export function BoardTaskColumn({
     },
   });
 
-  const sortedTasks = column.tasks
-    .slice()
-    .sort((a, b) => a.position - b.position);
+  const sortedTasks = sortTasksByPosition
+    ? column.tasks.slice().sort((a, b) => a.position - b.position)
+    : column.tasks;
 
   const activeType = active?.data.current?.type;
 
