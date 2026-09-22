@@ -17,20 +17,22 @@ import {
 } from '@dnd-kit/sortable';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { BoardTaskCardOverlay } from '@/components/boards/board-task-card';
 import { BoardTaskColumn } from '@/components/boards/board-task-column';
 import { BoardColumnManager } from '@/components/boards/board-column-manager';
+import { BoardTaskFilters } from '@/components/boards/board-task-filters';
 import { useBoardRealtime } from '@/hooks/realtime/use-board-realtime';
+import { useProjectLabels } from '@/hooks/labels/use-project-labels';
 import { CreateTaskForm } from '@/components/boards/create-task-form';
 import { useBoard } from '@/hooks/boards/use-board';
 import { useMoveColumn } from '@/hooks/boards/use-move-column';
 import { useProject } from '@/hooks/projects/use-project';
 import { useProjectMembers } from '@/hooks/projects/use-project-members';
 import { useMoveTask } from '@/hooks/tasks/use-move-task';
-import type { Task } from '@/lib/tasks';
+import type { SortOrder, Task, TaskSortBy } from '@/lib/tasks';
 
 function calculateTaskPosition(
   tasks: Task[],
@@ -202,10 +204,62 @@ function BoardColumnDragOverlay({
   );
 }
 
+function compareTasks(first: Task, second: Task, sortBy: TaskSortBy): number {
+  switch (sortBy) {
+    case 'priority': {
+      const priorityOrder: Record<Task['priority'], number> = {
+        LOW: 1,
+        MEDIUM: 2,
+        HIGH: 3,
+      };
+
+      return priorityOrder[first.priority] - priorityOrder[second.priority];
+    }
+
+    case 'createdAt':
+      return (
+        new Date(first.createdAt).getTime() -
+        new Date(second.createdAt).getTime()
+      );
+
+    case 'updatedAt':
+      return (
+        new Date(first.updatedAt).getTime() -
+        new Date(second.updatedAt).getTime()
+      );
+
+    case 'dueDate': {
+      if (!first.dueDate && !second.dueDate) {
+        return 0;
+      }
+
+      if (!first.dueDate) {
+        return 1;
+      }
+
+      if (!second.dueDate) {
+        return -1;
+      }
+
+      return (
+        new Date(first.dueDate).getTime() - new Date(second.dueDate).getTime()
+      );
+    }
+
+    case 'title':
+      return first.title.localeCompare(second.title);
+
+    case 'position':
+    default:
+      return first.position - second.position;
+  }
+}
+
 function BoardContent({ boardId }: { boardId: number }) {
   const { data: board, isPending, isError } = useBoard(boardId);
   const { data: project } = useProject(board?.projectId ?? 0);
   const { data: members } = useProjectMembers(board?.projectId ?? 0);
+  const { data: labels } = useProjectLabels(board?.projectId ?? 0);
 
   useBoardRealtime(boardId, board?.projectId ?? null);
 
@@ -215,6 +269,107 @@ function BoardContent({ boardId }: { boardId: number }) {
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
 
   const [activeColumnId, setActiveColumnId] = useState<number | null>(null);
+
+  const [search, setSearch] = useState('');
+  const [filterColumnId, setFilterColumnId] = useState<number | null>(null);
+  const [filterIssueType, setFilterIssueType] = useState<
+    'ALL' | Task['issueType']
+  >('ALL');
+  const [filterPriority, setFilterPriority] = useState<
+    'ALL' | Task['priority']
+  >('ALL');
+  const [filterAssigneeId, setFilterAssigneeId] = useState<
+    number | 'UNASSIGNED' | null
+  >(null);
+  const [filterLabelId, setFilterLabelId] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<TaskSortBy>('position');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+  const hasActiveFilters =
+    search.trim() !== '' ||
+    filterColumnId !== null ||
+    filterIssueType !== 'ALL' ||
+    filterPriority !== 'ALL' ||
+    filterAssigneeId !== null ||
+    filterLabelId !== null;
+
+  const isTaskDragDisabled =
+    hasActiveFilters || sortBy !== 'position' || sortOrder !== 'asc';
+
+  const filteredColumns = useMemo(() => {
+    if (!board) {
+      return [];
+    }
+
+    const normalizedSearch = search.trim().toLowerCase();
+
+    return board.columns.map((column) => {
+      const tasks = column.tasks.filter((task) => {
+        const matchesSearch =
+          normalizedSearch === '' ||
+          [task.issueKey, task.title, task.description].some((value) =>
+            value?.toLowerCase().includes(normalizedSearch),
+          );
+
+        const matchesColumn =
+          filterColumnId === null || column.id === filterColumnId;
+
+        const matchesIssueType =
+          filterIssueType === 'ALL' || task.issueType === filterIssueType;
+
+        const matchesPriority =
+          filterPriority === 'ALL' || task.priority === filterPriority;
+
+        const matchesAssignee =
+          filterAssigneeId === null ||
+          (filterAssigneeId === 'UNASSIGNED'
+            ? task.assigneeId === null
+            : task.assigneeId === filterAssigneeId);
+
+        const matchesLabel =
+          filterLabelId === null ||
+          task.labels.some((label) => label.id === filterLabelId);
+
+        return (
+          matchesSearch &&
+          matchesColumn &&
+          matchesIssueType &&
+          matchesPriority &&
+          matchesAssignee &&
+          matchesLabel
+        );
+      });
+
+      const sortedTasks = tasks.slice().sort((first, second) => {
+        const result = compareTasks(first, second, sortBy);
+
+        if (result !== 0) {
+          return sortOrder === 'asc' ? result : -result;
+        }
+
+        return first.id - second.id;
+      });
+
+      return {
+        ...column,
+        tasks: sortedTasks,
+        _count: {
+          ...column._count,
+          tasks: sortedTasks.length,
+        },
+      };
+    });
+  }, [
+    board,
+    filterAssigneeId,
+    filterColumnId,
+    filterIssueType,
+    filterLabelId,
+    filterPriority,
+    search,
+    sortBy,
+    sortOrder,
+  ]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -483,6 +638,56 @@ function BoardContent({ boardId }: { boardId: number }) {
           />
         </div>
 
+        <div>
+          <BoardTaskFilters
+            search={search}
+            columnId={filterColumnId}
+            issueType={filterIssueType}
+            priority={filterPriority}
+            assigneeId={filterAssigneeId}
+            labelId={filterLabelId}
+            columns={board.columns
+              .slice()
+              .sort((a, b) => a.position - b.position)
+              .map((column) => ({
+                id: column.id,
+                name: column.name,
+              }))}
+            members={
+              members?.map((member) => ({
+                id: member.user.id,
+                email: member.user.email,
+              })) ?? []
+            }
+            labels={
+              labels?.map((label) => ({
+                id: label.id,
+                name: label.name,
+              })) ?? []
+            }
+            onSearchChange={setSearch}
+            onColumnChange={setFilterColumnId}
+            onIssueTypeChange={setFilterIssueType}
+            onPriorityChange={setFilterPriority}
+            onAssigneeChange={setFilterAssigneeId}
+            onLabelChange={setFilterLabelId}
+            onReset={() => {
+              setSearch('');
+              setFilterColumnId(null);
+              setFilterIssueType('ALL');
+              setFilterPriority('ALL');
+              setFilterAssigneeId(null);
+              setFilterLabelId(null);
+              setSortBy('position');
+              setSortOrder('asc');
+            }}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortByChange={setSortBy}
+            onSortOrderChange={setSortOrder}
+          />
+        </div>
+
         <DndContext
           sensors={sensors}
           collisionDetection={collisionDetectionStrategy}
@@ -499,11 +704,17 @@ function BoardContent({ boardId }: { boardId: number }) {
               strategy={horizontalListSortingStrategy}
             >
               <div className="grid min-w-225 grid-cols-4 gap-4">
-                {board.columns
+                {filteredColumns
                   .slice()
                   .sort((a, b) => a.position - b.position)
                   .map((column) => (
-                    <BoardTaskColumn key={column.id} column={column} />
+                    <BoardTaskColumn
+                      key={column.id}
+                      column={column}
+                      disableTaskDrag={isTaskDragDisabled}
+                      hasActiveFilters={hasActiveFilters}
+                      sortTasksByPosition={sortBy === 'position'}
+                    />
                   ))}
               </div>
             </SortableContext>
