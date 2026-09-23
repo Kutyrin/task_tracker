@@ -265,6 +265,138 @@ export class ProjectsService {
     };
   }
 
+  async getDashboardStats(userId: number) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        members: {
+          some: {
+            userId,
+          },
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const projectIds = projects.map((project) => project.id);
+
+    if (projectIds.length === 0) {
+      return {
+        totalProjects: 0,
+        totalTasks: 0,
+        overdueTasks: 0,
+        byPriority: [],
+        byIssueType: [],
+        byColumn: [],
+      };
+    }
+
+    const [totalTasks, byPriority, byIssueType, byColumn, overdueTasks] =
+      await Promise.all([
+        this.prisma.task.count({
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+          },
+        }),
+
+        this.prisma.task.groupBy({
+          by: ['priority'],
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+          },
+          _count: {
+            _all: true,
+          },
+        }),
+
+        this.prisma.task.groupBy({
+          by: ['issueType'],
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+          },
+          _count: {
+            _all: true,
+          },
+        }),
+
+        this.prisma.task.groupBy({
+          by: ['columnId'],
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+          },
+          _count: {
+            _all: true,
+          },
+        }),
+
+        this.prisma.task.count({
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+            dueDate: {
+              lt: new Date(),
+            },
+            column: {
+              name: {
+                not: 'Done',
+              },
+            },
+          },
+        }),
+      ]);
+
+    const columnIds = byColumn
+      .map((item) => item.columnId)
+      .filter((id): id is number => id !== null);
+
+    const columns = await this.prisma.boardColumn.findMany({
+      where: {
+        id: {
+          in: columnIds,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    const columnMap = new Map(
+      columns.map((column) => [column.id, column.name]),
+    );
+
+    return {
+      totalProjects: projectIds.length,
+      totalTasks,
+      overdueTasks,
+      byPriority: byPriority.map((item) => ({
+        priority: item.priority,
+        count: item._count._all,
+      })),
+      byIssueType: byIssueType.map((item) => ({
+        issueType: item.issueType,
+        count: item._count._all,
+      })),
+      byColumn: byColumn.map((item) => ({
+        columnId: item.columnId,
+        columnName: item.columnId
+          ? (columnMap.get(item.columnId) ?? null)
+          : null,
+        count: item._count._all,
+      })),
+    };
+  }
+
   async getStats(userId: number, projectId: number) {
     await this.getProjectMember(userId, projectId);
 
