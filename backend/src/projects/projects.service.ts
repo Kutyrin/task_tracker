@@ -292,7 +292,7 @@ export class ProjectsService {
       };
     }
 
-    const [totalTasks, byPriority, byIssueType, byColumn, overdueTasks] =
+    const [totalTasks, byPriority, byIssueType, tasksForColumns, overdueTasks] =
       await Promise.all([
         this.prisma.task.count({
           where: {
@@ -326,15 +326,18 @@ export class ProjectsService {
           },
         }),
 
-        this.prisma.task.groupBy({
-          by: ['columnId'],
+        this.prisma.task.findMany({
           where: {
             projectId: {
               in: projectIds,
             },
           },
-          _count: {
-            _all: true,
+          select: {
+            column: {
+              select: {
+                name: true,
+              },
+            },
           },
         }),
 
@@ -355,25 +358,13 @@ export class ProjectsService {
         }),
       ]);
 
-    const columnIds = byColumn
-      .map((item) => item.columnId)
-      .filter((id): id is number => id !== null);
+    const columnStats = new Map<string, number>();
 
-    const columns = await this.prisma.boardColumn.findMany({
-      where: {
-        id: {
-          in: columnIds,
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-    });
+    for (const task of tasksForColumns) {
+      const columnName = task.column?.name ?? 'No status';
 
-    const columnMap = new Map(
-      columns.map((column) => [column.id, column.name]),
-    );
+      columnStats.set(columnName, (columnStats.get(columnName) ?? 0) + 1);
+    }
 
     return {
       totalProjects: projectIds.length,
@@ -387,13 +378,13 @@ export class ProjectsService {
         issueType: item.issueType,
         count: item._count._all,
       })),
-      byColumn: byColumn.map((item) => ({
-        columnId: item.columnId,
-        columnName: item.columnId
-          ? (columnMap.get(item.columnId) ?? null)
-          : null,
-        count: item._count._all,
-      })),
+      byColumn: Array.from(columnStats.entries())
+        .map(([columnName, count]) => ({
+          columnId: null,
+          columnName,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count),
     };
   }
 

@@ -43,6 +43,7 @@ describe('ProjectsService', () => {
     task: {
       count: jest.Mock;
       groupBy: jest.Mock;
+      findMany: jest.Mock;
     };
     boardColumn: {
       findMany: jest.Mock;
@@ -81,6 +82,7 @@ describe('ProjectsService', () => {
       task: {
         count: jest.fn(),
         groupBy: jest.fn(),
+        findMany: jest.fn(),
       },
 
       boardColumn: {
@@ -688,30 +690,31 @@ describe('ProjectsService', () => {
               _all: 1,
             },
           },
-        ])
-        .mockResolvedValueOnce([
-          {
-            columnId: 1,
-            _count: {
-              _all: 3,
-            },
-          },
-          {
-            columnId: 2,
-            _count: {
-              _all: 2,
-            },
-          },
         ]);
 
-      prismaMock.boardColumn.findMany.mockResolvedValue([
+      prismaMock.task.findMany.mockResolvedValue([
         {
-          id: 1,
-          name: 'Todo',
+          column: {
+            name: 'Todo',
+          },
         },
         {
-          id: 2,
-          name: 'Done',
+          column: {
+            name: 'Todo',
+          },
+        },
+        {
+          column: {
+            name: 'Done',
+          },
+        },
+        {
+          column: {
+            name: 'Todo',
+          },
+        },
+        {
+          column: null,
         },
       ]);
 
@@ -727,6 +730,53 @@ describe('ProjectsService', () => {
         },
         select: {
           id: true,
+        },
+      });
+
+      expect(prismaMock.task.count).toHaveBeenNthCalledWith(1, {
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+        },
+      });
+
+      expect(prismaMock.task.groupBy).toHaveBeenNthCalledWith(1, {
+        by: ['priority'],
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+        },
+        _count: {
+          _all: true,
+        },
+      });
+
+      expect(prismaMock.task.groupBy).toHaveBeenNthCalledWith(2, {
+        by: ['issueType'],
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+        },
+        _count: {
+          _all: true,
+        },
+      });
+
+      expect(prismaMock.task.findMany).toHaveBeenCalledWith({
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+        },
+        select: {
+          column: {
+            select: {
+              name: true,
+            },
+          },
         },
       });
 
@@ -756,14 +806,19 @@ describe('ProjectsService', () => {
         ],
         byColumn: [
           {
-            columnId: 1,
+            columnId: null,
             columnName: 'Todo',
             count: 3,
           },
           {
-            columnId: 2,
+            columnId: null,
             columnName: 'Done',
-            count: 2,
+            count: 1,
+          },
+          {
+            columnId: null,
+            columnName: 'No status',
+            count: 1,
           },
         ],
       });
@@ -785,7 +840,7 @@ describe('ProjectsService', () => {
 
       expect(prismaMock.task.count).not.toHaveBeenCalled();
       expect(prismaMock.task.groupBy).not.toHaveBeenCalled();
-      expect(prismaMock.boardColumn.findMany).not.toHaveBeenCalled();
+      expect(prismaMock.task.findMany).not.toHaveBeenCalled();
     });
   });
 
