@@ -39,9 +39,16 @@ export class ProjectsController {
     return this.projectsService.create(req.user.userId, dto);
   }
 
+  // Projects
+
   @Get()
   findAll(@Req() req: AuthenticatedRequest) {
     return this.projectsService.findAll(req.user.userId);
+  }
+
+  @Get('stats')
+  getDashboardStats(@Req() req: AuthenticatedRequest) {
+    return this.projectsService.getDashboardStats(req.user.userId);
   }
 
   @Get(':id/stats')

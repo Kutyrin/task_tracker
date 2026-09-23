@@ -1,5 +1,7 @@
 import api from '@/lib/api';
 
+import type { IssueType, TaskPriority } from '@/lib/tasks';
+
 export type ProjectRole = 'OWNER' | 'ADMIN' | 'MEMBER';
 
 export interface Project {
@@ -34,6 +36,25 @@ interface ProjectsResponse {
   data: Project[];
 }
 
+export interface DashboardStats {
+  totalProjects: number;
+  totalTasks: number;
+  overdueTasks: number;
+  byPriority: {
+    priority: TaskPriority;
+    count: number;
+  }[];
+  byIssueType: {
+    issueType: IssueType;
+    count: number;
+  }[];
+  byColumn: {
+    columnId: number | null;
+    columnName: string | null;
+    count: number;
+  }[];
+}
+
 export interface CreateProjectData {
   name: string;
   key: string;
@@ -44,6 +65,12 @@ export async function getProjects(): Promise<Project[]> {
   const response = await api.get<ProjectsResponse>('/projects');
 
   return response.data.data;
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const response = await api.get<DashboardStats>('/projects/stats');
+
+  return response.data;
 }
 
 export async function createProject(data: CreateProjectData): Promise<Project> {
@@ -107,4 +134,8 @@ export async function removeProjectMember(
   memberId: number,
 ): Promise<void> {
   await api.delete(`/projects/${projectId}/members/${memberId}`);
+}
+
+export async function deleteProject(projectId: number): Promise<void> {
+  await api.delete(`/projects/${projectId}`);
 }

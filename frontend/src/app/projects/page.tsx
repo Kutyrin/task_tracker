@@ -47,12 +47,23 @@ function ProjectsContent() {
           </div>
         </div>
 
-        <Link
-          href="/projects/new"
-          className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
-        >
-          Create project
-        </Link>
+        <div className="mt-4">
+          <Link
+            href="/dashboard"
+            className="rounded-lg flex-1 bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+          >
+            Dashboard
+          </Link>
+        </div>
+
+        <div className="mt-4">
+          <Link
+            href="/projects/new"
+            className="rounded-lg flex-1 bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+          >
+            Create project
+          </Link>
+        </div>
 
         {projects.length === 0 ? (
           <div className="mt-8 rounded-2xl border border-dashed border-slate-300 p-10 text-center">

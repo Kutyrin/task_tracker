@@ -265,6 +265,129 @@ export class ProjectsService {
     };
   }
 
+  async getDashboardStats(userId: number) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        members: {
+          some: {
+            userId,
+          },
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const projectIds = projects.map((project) => project.id);
+
+    if (projectIds.length === 0) {
+      return {
+        totalProjects: 0,
+        totalTasks: 0,
+        overdueTasks: 0,
+        byPriority: [],
+        byIssueType: [],
+        byColumn: [],
+      };
+    }
+
+    const [totalTasks, byPriority, byIssueType, tasksForColumns, overdueTasks] =
+      await Promise.all([
+        this.prisma.task.count({
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+          },
+        }),
+
+        this.prisma.task.groupBy({
+          by: ['priority'],
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+          },
+          _count: {
+            _all: true,
+          },
+        }),
+
+        this.prisma.task.groupBy({
+          by: ['issueType'],
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+          },
+          _count: {
+            _all: true,
+          },
+        }),
+
+        this.prisma.task.findMany({
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+          },
+          select: {
+            column: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        }),
+
+        this.prisma.task.count({
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+            dueDate: {
+              lt: new Date(),
+            },
+            column: {
+              name: {
+                not: 'Done',
+              },
+            },
+          },
+        }),
+      ]);
+
+    const columnStats = new Map<string, number>();
+
+    for (const task of tasksForColumns) {
+      const columnName = task.column?.name ?? 'No status';
+
+      columnStats.set(columnName, (columnStats.get(columnName) ?? 0) + 1);
+    }
+
+    return {
+      totalProjects: projectIds.length,
+      totalTasks,
+      overdueTasks,
+      byPriority: byPriority.map((item) => ({
+        priority: item.priority,
+        count: item._count._all,
+      })),
+      byIssueType: byIssueType.map((item) => ({
+        issueType: item.issueType,
+        count: item._count._all,
+      })),
+      byColumn: Array.from(columnStats.entries())
+        .map(([columnName, count]) => ({
+          columnId: null,
+          columnName,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count),
+    };
+  }
+
   async getStats(userId: number, projectId: number) {
     await this.getProjectMember(userId, projectId);
 

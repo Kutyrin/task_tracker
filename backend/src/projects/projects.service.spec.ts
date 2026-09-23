@@ -43,6 +43,7 @@ describe('ProjectsService', () => {
     task: {
       count: jest.Mock;
       groupBy: jest.Mock;
+      findMany: jest.Mock;
     };
     boardColumn: {
       findMany: jest.Mock;
@@ -81,6 +82,7 @@ describe('ProjectsService', () => {
       task: {
         count: jest.fn(),
         groupBy: jest.fn(),
+        findMany: jest.fn(),
       },
 
       boardColumn: {
@@ -644,6 +646,201 @@ describe('ProjectsService', () => {
 
       expect(prismaMock.project.delete).not.toHaveBeenCalled();
       expect(realtimeServiceMock.emitToProject).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getDashboardStats', () => {
+    it('should return aggregated stats for all user projects', async () => {
+      prismaMock.project.findMany.mockResolvedValue([
+        {
+          id: 1,
+        },
+        {
+          id: 2,
+        },
+      ]);
+
+      prismaMock.task.count.mockResolvedValueOnce(5).mockResolvedValueOnce(1);
+
+      prismaMock.task.groupBy
+        .mockResolvedValueOnce([
+          {
+            priority: 'HIGH',
+            _count: {
+              _all: 2,
+            },
+          },
+          {
+            priority: 'LOW',
+            _count: {
+              _all: 3,
+            },
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            issueType: 'TASK',
+            _count: {
+              _all: 4,
+            },
+          },
+          {
+            issueType: 'BUG',
+            _count: {
+              _all: 1,
+            },
+          },
+        ]);
+
+      prismaMock.task.findMany.mockResolvedValue([
+        {
+          column: {
+            name: 'Todo',
+          },
+        },
+        {
+          column: {
+            name: 'Todo',
+          },
+        },
+        {
+          column: {
+            name: 'Done',
+          },
+        },
+        {
+          column: {
+            name: 'Todo',
+          },
+        },
+        {
+          column: null,
+        },
+      ]);
+
+      const result = await service.getDashboardStats(1);
+
+      expect(prismaMock.project.findMany).toHaveBeenCalledWith({
+        where: {
+          members: {
+            some: {
+              userId: 1,
+            },
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      expect(prismaMock.task.count).toHaveBeenNthCalledWith(1, {
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+        },
+      });
+
+      expect(prismaMock.task.groupBy).toHaveBeenNthCalledWith(1, {
+        by: ['priority'],
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+        },
+        _count: {
+          _all: true,
+        },
+      });
+
+      expect(prismaMock.task.groupBy).toHaveBeenNthCalledWith(2, {
+        by: ['issueType'],
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+        },
+        _count: {
+          _all: true,
+        },
+      });
+
+      expect(prismaMock.task.findMany).toHaveBeenCalledWith({
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+        },
+        select: {
+          column: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+
+      expect(result).toEqual({
+        totalProjects: 2,
+        totalTasks: 5,
+        overdueTasks: 1,
+        byPriority: [
+          {
+            priority: 'HIGH',
+            count: 2,
+          },
+          {
+            priority: 'LOW',
+            count: 3,
+          },
+        ],
+        byIssueType: [
+          {
+            issueType: 'TASK',
+            count: 4,
+          },
+          {
+            issueType: 'BUG',
+            count: 1,
+          },
+        ],
+        byColumn: [
+          {
+            columnId: null,
+            columnName: 'Todo',
+            count: 3,
+          },
+          {
+            columnId: null,
+            columnName: 'Done',
+            count: 1,
+          },
+          {
+            columnId: null,
+            columnName: 'No status',
+            count: 1,
+          },
+        ],
+      });
+    });
+
+    it('should return empty stats when user has no projects', async () => {
+      prismaMock.project.findMany.mockResolvedValue([]);
+
+      const result = await service.getDashboardStats(999);
+
+      expect(result).toEqual({
+        totalProjects: 0,
+        totalTasks: 0,
+        overdueTasks: 0,
+        byPriority: [],
+        byIssueType: [],
+        byColumn: [],
+      });
+
+      expect(prismaMock.task.count).not.toHaveBeenCalled();
+      expect(prismaMock.task.groupBy).not.toHaveBeenCalled();
+      expect(prismaMock.task.findMany).not.toHaveBeenCalled();
     });
   });
 
