@@ -705,11 +705,32 @@ export class TasksService {
   async remove(userId: number, taskId: number) {
     const task = await this.findOne(userId, taskId);
 
-    await this.prisma.task.delete({
-      where: {
-        id: taskId,
-      },
+    const activity = await this.prisma.$transaction(async (tx) => {
+      const createdActivity =
+        await this.activitiesService.createWithTransaction(
+          tx,
+          taskId,
+          userId,
+          ActivityType.TASK_DELETED,
+          `Task "${task.title}" deleted`,
+          undefined,
+          task.projectId!,
+        );
+
+      await tx.task.delete({
+        where: {
+          id: taskId,
+        },
+      });
+
+      return createdActivity;
     });
+
+    this.realtimeService.emitToProject(
+      task.projectId!,
+      'activity.created',
+      activity,
+    );
 
     this.realtimeService.emitToProject(task.projectId!, 'task.deleted', {
       taskId,

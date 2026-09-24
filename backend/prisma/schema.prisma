@@ -50,6 +50,7 @@ model Project {
   tasks   Task[]
   boards  Board[]
   labels  Label[]
+  activities Activity[]
   notifications Notification[]
 
   @@index([ownerId])
@@ -193,13 +194,17 @@ model Activity {
   metadata  Json?
   createdAt DateTime     @default(now())
 
-  taskId Int
-  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId Int?
+  task   Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  projectId Int?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   userId Int
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([taskId, createdAt])
+  @@index([projectId, createdAt])
   @@index([userId, createdAt])
 }
 
@@ -252,6 +257,7 @@ model Attachment {
 enum ActivityType {
   TASK_CREATED
   TASK_MOVED
+  TASK_DELETED
   TITLE_CHANGED
   DESCRIPTION_CHANGED
   DUE_DATE_CHANGED

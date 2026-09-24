@@ -6,6 +6,7 @@ jest.mock('@prisma/client', () => {
     ActivityType: {
       TASK_CREATED: 'TASK_CREATED',
       TASK_MOVED: 'TASK_MOVED',
+      TASK_DELETED: 'TASK_DELETED',
       TITLE_CHANGED: 'TITLE_CHANGED',
       DESCRIPTION_CHANGED: 'DESCRIPTION_CHANGED',
       DUE_DATE_CHANGED: 'DUE_DATE_CHANGED',
@@ -2970,12 +2971,22 @@ describe('TasksService', () => {
     });
   });
   describe('remove', () => {
-    it('should delete a task and emit realtime event', async () => {
+    it('should delete a task, create TASK_DELETED activity, and emit realtime events', async () => {
       const task = {
         id: 10,
         title: 'Task to delete',
         projectId: 1,
         columnId: 1,
+      };
+
+      const activity = {
+        id: 200,
+        type: 'TASK_DELETED',
+        message: 'Task "Task to delete" deleted',
+        user: {
+          id: 1,
+          email: 'user@example.com',
+        },
       };
 
       prismaMock.task.findUnique.mockResolvedValue(task);
@@ -2985,23 +2996,47 @@ describe('TasksService', () => {
         userId: 1,
       });
 
-      prismaMock.task.delete.mockResolvedValue(task);
+      prismaMock.$transaction.mockImplementation(async (callback) => {
+        const tx = {
+          task: {
+            delete: jest.fn().mockResolvedValue(task),
+          },
+        };
 
-      mapTaskMock.mockReturnValue({
-        id: 10,
-        title: 'Task to delete',
-        projectId: 1,
+        activitiesServiceMock.createWithTransaction.mockResolvedValue(activity);
+
+        const result = await callback(tx);
+
+        expect(tx.task.delete).toHaveBeenCalledWith({
+          where: {
+            id: 10,
+          },
+        });
+
+        return result;
       });
 
       const result = await service.remove(1, 10);
 
-      expect(prismaMock.task.delete).toHaveBeenCalledWith({
-        where: {
-          id: 10,
-        },
-      });
+      expect(activitiesServiceMock.createWithTransaction).toHaveBeenCalledWith(
+        expect.anything(),
+        10,
+        1,
+        'TASK_DELETED',
+        'Task "Task to delete" deleted',
+        undefined,
+        1,
+      );
 
-      expect(realtimeServiceMock.emitToProject).toHaveBeenCalledWith(
+      expect(realtimeServiceMock.emitToProject).toHaveBeenNthCalledWith(
+        1,
+        1,
+        'activity.created',
+        activity,
+      );
+
+      expect(realtimeServiceMock.emitToProject).toHaveBeenNthCalledWith(
+        2,
         1,
         'task.deleted',
         {

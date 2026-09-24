@@ -7,6 +7,7 @@ jest.mock('@prisma/client', () => {
       ...actual.ActivityType,
       TASK_CREATED: 'TASK_CREATED',
       TASK_MOVED: 'TASK_MOVED',
+      TASK_DELETED: 'TASK_DELETED',
       LABEL_ADDED: 'LABEL_ADDED',
     },
   };
@@ -159,6 +160,57 @@ describe('ActivitiesService', () => {
 
       expect(result).toEqual(activity);
     });
+
+    it('should create an activity with project reference', async () => {
+      const activity = {
+        id: 3,
+        type: ActivityType.TASK_DELETED,
+        message: 'Task "Deleted task" deleted',
+        metadata: undefined,
+        createdAt: new Date('2026-09-10T14:00:00.000Z'),
+        user: {
+          id: 2,
+          email: 'user2@example.com',
+        },
+      };
+
+      prismaMock.activity.create.mockResolvedValue(activity);
+
+      const result = await service.create(
+        100,
+        2,
+        ActivityType.TASK_DELETED,
+        'Task "Deleted task" deleted',
+        undefined,
+        1,
+      );
+
+      expect(prismaMock.activity.create).toHaveBeenCalledWith({
+        data: {
+          taskId: 100,
+          projectId: 1,
+          userId: 2,
+          type: ActivityType.TASK_DELETED,
+          message: 'Task "Deleted task" deleted',
+          metadata: undefined,
+        },
+        select: {
+          id: true,
+          type: true,
+          message: true,
+          metadata: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      expect(result).toEqual(activity);
+    });
   });
 
   describe('createWithTransaction', () => {
@@ -256,6 +308,62 @@ describe('ActivitiesService', () => {
           userId: 2,
           type: ActivityType.TASK_CREATED,
           message: 'Task created',
+          metadata: undefined,
+        },
+        select: {
+          id: true,
+          type: true,
+          message: true,
+          metadata: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      expect(result).toEqual(activity);
+    });
+
+    it('should create an activity with project reference', async () => {
+      const activity = {
+        id: 12,
+        type: ActivityType.TASK_DELETED,
+        message: 'Task "Deleted task" deleted',
+        metadata: undefined,
+        createdAt: new Date('2026-09-10T14:00:00.000Z'),
+        user: {
+          id: 2,
+          email: 'user2@example.com',
+        },
+      };
+
+      const tx = {
+        activity: {
+          create: jest.fn().mockResolvedValue(activity),
+        },
+      };
+
+      const result = await service.createWithTransaction(
+        tx as never,
+        100,
+        2,
+        ActivityType.TASK_DELETED,
+        'Task "Deleted task" deleted',
+        undefined,
+        1,
+      );
+
+      expect(tx.activity.create).toHaveBeenCalledWith({
+        data: {
+          taskId: 100,
+          projectId: 1,
+          userId: 2,
+          type: ActivityType.TASK_DELETED,
+          message: 'Task "Deleted task" deleted',
           metadata: undefined,
         },
         select: {
@@ -423,7 +531,7 @@ describe('ActivitiesService', () => {
   });
 
   describe('findAllByProject', () => {
-    it('should return project activities with task information', async () => {
+    it('should return project activities with task information and deleted task activities', async () => {
       prismaMock.projectMember.findFirst.mockResolvedValue({
         id: 1,
         projectId: 1,
@@ -451,6 +559,18 @@ describe('ActivitiesService', () => {
             },
           },
         },
+        {
+          id: 1,
+          type: ActivityType.TASK_DELETED,
+          message: 'Task "Deleted task" deleted',
+          metadata: null,
+          createdAt: new Date('2026-09-10T10:00:00.000Z'),
+          user: {
+            id: 1,
+            email: 'user@example.com',
+          },
+          task: null,
+        },
       ];
 
       prismaMock.activity.findMany.mockResolvedValue(activities);
@@ -466,9 +586,16 @@ describe('ActivitiesService', () => {
 
       expect(prismaMock.activity.findMany).toHaveBeenCalledWith({
         where: {
-          task: {
-            projectId: 1,
-          },
+          OR: [
+            {
+              task: {
+                projectId: 1,
+              },
+            },
+            {
+              projectId: 1,
+            },
+          ],
         },
         select: {
           id: true,
