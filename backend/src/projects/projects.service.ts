@@ -5,8 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { Prisma, ProjectRole } from '@prisma/client';
+import { NotificationType, Prisma, ProjectRole } from '@prisma/client';
 
+import { NotificationsService } from '../notifications/notifications.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddProjectMemberDto } from './dto/add-project-member.dto';
@@ -19,6 +20,7 @@ export class ProjectsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtimeService: RealtimeService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(userId: number, dto: CreateProjectDto) {
@@ -621,6 +623,13 @@ export class ProjectsService {
       });
 
       this.realtimeService.emitToProject(projectId, 'member.added', member);
+
+      await this.notificationsService.create({
+        userId: member.user.id,
+        type: NotificationType.PROJECT_MEMBER_ADDED,
+        message: 'You were added to a project',
+        projectId,
+      });
 
       return member;
     } catch (error) {

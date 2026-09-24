@@ -20,6 +20,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { ProjectsService } from './projects.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;
@@ -57,6 +58,10 @@ describe('ProjectsService', () => {
   let realtimeServiceMock: {
     emitToUser: jest.Mock;
     emitToProject: jest.Mock;
+  };
+
+  let notificationsServiceMock: {
+    create: jest.Mock;
   };
 
   beforeEach(() => {
@@ -100,9 +105,14 @@ describe('ProjectsService', () => {
       emitToProject: jest.fn(),
     };
 
+    notificationsServiceMock = {
+      create: jest.fn(),
+    };
+
     service = new ProjectsService(
       prismaMock as unknown as PrismaService,
       realtimeServiceMock as unknown as RealtimeService,
+      notificationsServiceMock as unknown as NotificationsService,
     );
   });
 
@@ -1276,6 +1286,15 @@ describe('ProjectsService', () => {
 
       prismaMock.projectMember.create.mockResolvedValue(member);
 
+      notificationsServiceMock.create.mockResolvedValue({
+        id: 1,
+        type: 'PROJECT_MEMBER_ADDED',
+        message: 'You were added to a project',
+        userId: 2,
+        taskId: null,
+        projectId: 1,
+      });
+
       const result = await service.addMember(1, 1, {
         userId: 2,
         role: 'MEMBER',
@@ -1311,6 +1330,13 @@ describe('ProjectsService', () => {
         'member.added',
         member,
       );
+
+      expect(notificationsServiceMock.create).toHaveBeenCalledWith({
+        userId: 2,
+        type: 'PROJECT_MEMBER_ADDED',
+        message: 'You were added to a project',
+        projectId: 1,
+      });
 
       expect(result).toEqual(member);
     });
