@@ -14,6 +14,7 @@ import { AddProjectMemberForm } from '@/components/projects/add-project-member-f
 import { ProjectBoards } from '@/components/projects/project-boards';
 import { useProjectBoards } from '@/hooks/projects/use-project-boards';
 import { CreateBoardForm } from '@/components/projects/create-board-form';
+import { ProjectActivitySection } from '@/components/projects/project-activity-section';
 
 function ProjectContent({ projectId }: { projectId: number }) {
   const router = useRouter();
@@ -271,6 +272,10 @@ function ProjectContent({ projectId }: { projectId: number }) {
               <CreateBoardForm projectId={projectId} />
             )}
           </div>
+        </div>
+        {/* Project activity */}
+        <div>
+          <ProjectActivitySection projectId={projectId} />
         </div>
       </div>
     </main>
