@@ -761,10 +761,24 @@ export class ProjectsService {
       throw new ForbiddenException('Only project owner can remove admins');
     }
 
-    await this.prisma.projectMember.delete({
-      where: {
-        id: memberId,
-      },
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.projectMember.delete({
+        where: {
+          id: memberId,
+        },
+      });
+
+      const notification =
+        await this.notificationsService.createWithTransaction(tx, {
+          userId: member.userId,
+          type: NotificationType.PROJECT_ACCESS_REVOKED,
+          message: 'Your access to the project has been revoked',
+          projectId,
+        });
+
+      return {
+        notification,
+      };
     });
 
     this.realtimeService.emitToProject(projectId, 'member.removed', {
@@ -774,6 +788,12 @@ export class ProjectsService {
     this.realtimeService.emitToUser(member.userId, 'project.access.revoked', {
       projectId,
     });
+
+    this.realtimeService.emitToUser(
+      result.notification.userId,
+      'notification.created',
+      result.notification,
+    );
 
     return {
       message: 'Project member removed successfully',
