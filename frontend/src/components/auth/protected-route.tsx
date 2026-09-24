@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { useAppSelector } from '@/store/hooks';
 
 interface ProtectedRouteProps {
@@ -31,5 +32,19 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return null;
   }
 
-  return children;
+  return (
+    <div className="min-h-screen">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+          <span className="text-sm font-semibold text-slate-950">
+            Task Tracker
+          </span>
+
+          <NotificationBell />
+        </div>
+      </header>
+
+      {children}
+    </div>
+  );
 }

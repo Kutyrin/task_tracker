@@ -31,6 +31,7 @@ model User {
   comments            Comment[]
   activities          Activity[]
   uploadedAttachments Attachment[]
+  notifications       Notification[]
 }
 
 model Project {
@@ -49,6 +50,8 @@ model Project {
   tasks   Task[]
   boards  Board[]
   labels  Label[]
+  activities Activity[]
+  notifications Notification[]
 
   @@index([ownerId])
 }
@@ -132,6 +135,7 @@ model Task {
   labels      TaskLabel[]
   activities  Activity[]
   attachments Attachment[]
+  notifications Notification[]
 
   @@unique([projectId, issueNumber])
   @@index([userId])
@@ -190,14 +194,47 @@ model Activity {
   metadata  Json?
   createdAt DateTime     @default(now())
 
-  taskId Int
-  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId Int?
+  task   Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  projectId Int?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   userId Int
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([taskId, createdAt])
+  @@index([projectId, createdAt])
   @@index([userId, createdAt])
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  type      NotificationType
+  message   String
+  createdAt DateTime         @default(now())
+  readAt    DateTime?
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  taskId Int?
+  task   Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  projectId Int?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_DELETED
+  COMMENT_ADDED
+  PROJECT_MEMBER_ADDED
+  PROJECT_ROLE_UPDATED
+  PROJECT_ACCESS_REVOKED
 }
 
 model Attachment {
@@ -221,6 +258,7 @@ model Attachment {
 enum ActivityType {
   TASK_CREATED
   TASK_MOVED
+  TASK_DELETED
   TITLE_CHANGED
   DESCRIPTION_CHANGED
   DUE_DATE_CHANGED

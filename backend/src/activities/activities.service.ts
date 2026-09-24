@@ -60,10 +60,12 @@ export class ActivitiesService {
     type: ActivityType,
     message: string,
     metadata?: Prisma.InputJsonValue,
+    projectId?: number,
   ) {
     return this.prisma.activity.create({
       data: {
         taskId,
+        ...(projectId !== undefined ? { projectId } : {}),
         userId,
         type,
         message,
@@ -80,10 +82,12 @@ export class ActivitiesService {
     type: ActivityType,
     message: string,
     metadata?: Prisma.InputJsonValue,
+    projectId?: number,
   ) {
     return tx.activity.create({
       data: {
         taskId,
+        ...(projectId !== undefined ? { projectId } : {}),
         userId,
         type,
         message,
@@ -122,9 +126,16 @@ export class ActivitiesService {
     return {
       data: await this.prisma.activity.findMany({
         where: {
-          task: {
-            projectId,
-          },
+          OR: [
+            {
+              task: {
+                projectId,
+              },
+            },
+            {
+              projectId,
+            },
+          ],
         },
         select: {
           ...activitySelect,

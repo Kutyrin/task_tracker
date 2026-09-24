@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { ActivityType, Prisma } from '@prisma/client';
+import { ActivityType, NotificationType, Prisma } from '@prisma/client';
 
+import { NotificationsService } from '../notifications/notifications.service';
 import { ActivitiesService } from '../activities/activities.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -17,6 +18,7 @@ export class TasksService {
     private readonly prisma: PrismaService,
     private readonly activitiesService: ActivitiesService,
     private readonly realtimeService: RealtimeService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private async ensureProjectMember(userId: number, projectId: number) {
@@ -137,9 +139,21 @@ export class TasksService {
         `Task ${createdTask.project?.key ?? ''}-${createdTask.issueNumber} created`,
       );
 
+      const notification =
+        createdTask.assigneeId !== null && createdTask.assigneeId !== userId
+          ? await this.notificationsService.createWithTransaction(tx, {
+              userId: createdTask.assigneeId,
+              type: NotificationType.TASK_ASSIGNED,
+              message: `You were assigned to task "${createdTask.title}"`,
+              taskId: createdTask.id,
+              projectId: createdTask.projectId!,
+            })
+          : null;
+
       return {
         task: createdTask,
         activity,
+        notification,
       };
     });
 
@@ -168,6 +182,14 @@ export class TasksService {
         },
       },
     );
+
+    if (result.notification) {
+      this.realtimeService.emitToUser(
+        result.notification.userId,
+        'notification.created',
+        result.notification,
+      );
+    }
 
     return mappedTask;
   }
@@ -618,9 +640,26 @@ export class TasksService {
         );
       }
 
+      const assigneeId = dto.assigneeId;
+
+      const notification =
+        assigneeChanged &&
+        assigneeId !== undefined &&
+        assigneeId !== null &&
+        assigneeId !== userId
+          ? await this.notificationsService.createWithTransaction(tx, {
+              userId: assigneeId,
+              type: NotificationType.TASK_ASSIGNED,
+              message: `You were assigned to task "${updatedTask.title}"`,
+              taskId: updatedTask.id,
+              projectId: updatedTask.projectId!,
+            })
+          : null;
+
       return {
         task: updatedTask,
         activities,
+        notification,
       };
     });
 
@@ -652,21 +691,112 @@ export class TasksService {
       );
     }
 
+    if (result.notification) {
+      this.realtimeService.emitToUser(
+        result.notification.userId,
+        'notification.created',
+        result.notification,
+      );
+    }
+
     return mappedTask;
   }
 
   async remove(userId: number, taskId: number) {
     const task = await this.findOne(userId, taskId);
 
-    await this.prisma.task.delete({
-      where: {
-        id: taskId,
-      },
+    const recipientIds = Array.from(
+      new Set(
+        [task.reporter?.id, task.assignee?.id].filter(
+          (id): id is number => id !== null && id !== undefined,
+        ),
+      ),
+    ).filter((id) => id !== userId);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const existingNotifications = await tx.notification.findMany({
+        where: {
+          taskId,
+        },
+        select: {
+          userId: true,
+        },
+      });
+
+      const activity = await this.activitiesService.createWithTransaction(
+        tx,
+        taskId,
+        userId,
+        ActivityType.TASK_DELETED,
+        `Task "${task.title}" deleted`,
+        undefined,
+        task.projectId!,
+      );
+
+      const notifications = [];
+
+      for (const recipientId of recipientIds) {
+        const notification =
+          await this.notificationsService.createWithTransaction(tx, {
+            userId: recipientId,
+            type: NotificationType.TASK_DELETED,
+            message: `Task "${task.title}" was deleted`,
+            projectId: task.projectId!,
+          });
+
+        notifications.push(notification);
+      }
+
+      await tx.task.delete({
+        where: {
+          id: taskId,
+        },
+      });
+
+      return {
+        activity,
+        notifications,
+        existingNotifications,
+      };
     });
+
+    const affectedUserIds = Array.from(
+      new Set([
+        ...result.existingNotifications.map(
+          (notification) => notification.userId,
+        ),
+        ...result.notifications.map((notification) => notification.userId),
+      ]),
+    );
+
+    this.realtimeService.emitToProject(
+      task.projectId!,
+      'activity.created',
+      result.activity,
+    );
 
     this.realtimeService.emitToProject(task.projectId!, 'task.deleted', {
       taskId,
     });
+
+    for (const affectedUserId of affectedUserIds) {
+      this.realtimeService.emitToUser(
+        affectedUserId,
+        'notification.task.deleted',
+        {
+          taskId,
+          projectId: task.projectId!,
+        },
+      );
+    }
+
+    for (const notification of result.notifications) {
+      this.realtimeService.emitToUser(
+        notification.userId,
+        'notification.created',
+        notification,
+      );
+    }
 
     return {
       message: 'Task deleted successfully',

@@ -5,6 +5,8 @@ import { io } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
 
+import type { Activity } from '@/lib/activities';
+import { projectActivitiesQueryKey } from '@/hooks/activities/use-project-activities';
 import { useAppSelector } from '@/store/hooks';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -47,6 +49,27 @@ export function useProjectRealtime(projectId: number) {
       });
     };
 
+    const addActivity = (activity: Activity) => {
+      queryClient.setQueryData<Activity[]>(
+        projectActivitiesQueryKey(projectId),
+        (currentActivities) => {
+          if (!currentActivities) {
+            return [activity];
+          }
+
+          if (
+            currentActivities.some(
+              (currentActivity) => currentActivity.id === activity.id,
+            )
+          ) {
+            return currentActivities;
+          }
+
+          return [activity, ...currentActivities];
+        },
+      );
+    };
+
     socket.on('connect', () => {
       socket.emit('join-project', projectId);
     });
@@ -54,11 +77,13 @@ export function useProjectRealtime(projectId: number) {
     socket.on('label.created', refreshLabels);
     socket.on('label.updated', refreshLabels);
     socket.on('label.deleted', refreshLabels);
+    socket.on('activity.created', addActivity);
 
     return () => {
       socket.off('label.created', refreshLabels);
       socket.off('label.updated', refreshLabels);
       socket.off('label.deleted', refreshLabels);
+      socket.off('activity.created', addActivity);
       socket.disconnect();
     };
   }, [accessToken, projectId, queryClient]);

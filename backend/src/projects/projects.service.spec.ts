@@ -20,6 +20,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { ProjectsService } from './projects.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;
@@ -57,6 +58,11 @@ describe('ProjectsService', () => {
   let realtimeServiceMock: {
     emitToUser: jest.Mock;
     emitToProject: jest.Mock;
+  };
+
+  let notificationsServiceMock: {
+    create: jest.Mock;
+    createWithTransaction: jest.Mock;
   };
 
   beforeEach(() => {
@@ -100,9 +106,15 @@ describe('ProjectsService', () => {
       emitToProject: jest.fn(),
     };
 
+    notificationsServiceMock = {
+      create: jest.fn(),
+      createWithTransaction: jest.fn(),
+    };
+
     service = new ProjectsService(
       prismaMock as unknown as PrismaService,
       realtimeServiceMock as unknown as RealtimeService,
+      notificationsServiceMock as unknown as NotificationsService,
     );
   });
 
@@ -1276,6 +1288,15 @@ describe('ProjectsService', () => {
 
       prismaMock.projectMember.create.mockResolvedValue(member);
 
+      notificationsServiceMock.create.mockResolvedValue({
+        id: 1,
+        type: 'PROJECT_MEMBER_ADDED',
+        message: 'You were added to a project',
+        userId: 2,
+        taskId: null,
+        projectId: 1,
+      });
+
       const result = await service.addMember(1, 1, {
         userId: 2,
         role: 'MEMBER',
@@ -1311,6 +1332,13 @@ describe('ProjectsService', () => {
         'member.added',
         member,
       );
+
+      expect(notificationsServiceMock.create).toHaveBeenCalledWith({
+        userId: 2,
+        type: 'PROJECT_MEMBER_ADDED',
+        message: 'You were added to a project',
+        projectId: 1,
+      });
 
       expect(result).toEqual(member);
     });
@@ -1603,6 +1631,15 @@ describe('ProjectsService', () => {
 
       prismaMock.projectMember.update.mockResolvedValue(updatedMember);
 
+      notificationsServiceMock.create.mockResolvedValue({
+        id: 1,
+        type: 'PROJECT_ROLE_UPDATED',
+        message: 'Your project role was changed from MEMBER to ADMIN',
+        userId: 2,
+        taskId: null,
+        projectId: 1,
+      });
+
       const result = await service.updateMemberRole(1, 1, 2, {
         role: 'ADMIN',
       });
@@ -1632,6 +1669,13 @@ describe('ProjectsService', () => {
         'member.role.updated',
         updatedMember,
       );
+
+      expect(notificationsServiceMock.create).toHaveBeenCalledWith({
+        userId: 2,
+        type: 'PROJECT_ROLE_UPDATED',
+        message: 'Your project role was changed from MEMBER to ADMIN',
+        projectId: 1,
+      });
 
       expect(result).toEqual(updatedMember);
     });
@@ -1665,6 +1709,13 @@ describe('ProjectsService', () => {
 
       const result = await service.updateMemberRole(1, 1, 2, {
         role: 'MEMBER',
+      });
+
+      expect(notificationsServiceMock.create).toHaveBeenCalledWith({
+        userId: 1,
+        type: 'PROJECT_ROLE_UPDATED',
+        message: 'Your project role was changed from ADMIN to MEMBER',
+        projectId: 1,
       });
 
       expect(result).toEqual(updatedMember);
@@ -1811,13 +1862,54 @@ describe('ProjectsService', () => {
           role: 'MEMBER',
         });
 
+      const tx = {
+        projectMember: {
+          delete: jest.fn().mockResolvedValue({
+            id: 2,
+          }),
+        },
+      };
+
+      prismaMock.$transaction.mockImplementation(async (callback) =>
+        callback(tx),
+      );
+
+      notificationsServiceMock.createWithTransaction.mockResolvedValue({
+        id: 3,
+        type: 'PROJECT_ACCESS_REVOKED',
+        message: 'Your access to the project has been revoked',
+        userId: 2,
+        taskId: null,
+        projectId: 1,
+      });
+
       const result = await service.removeMember(1, 1, 2);
 
-      expect(prismaMock.projectMember.delete).toHaveBeenCalledWith({
+      expect(tx.projectMember.delete).toHaveBeenCalledWith({
         where: {
           id: 2,
         },
       });
+
+      expect(
+        notificationsServiceMock.createWithTransaction,
+      ).toHaveBeenCalledWith(expect.anything(), {
+        userId: 2,
+        type: 'PROJECT_ACCESS_REVOKED',
+        message: 'Your access to the project has been revoked',
+        projectId: 1,
+      });
+
+      expect(realtimeServiceMock.emitToUser).toHaveBeenCalledWith(
+        2,
+        'notification.created',
+        expect.objectContaining({
+          id: 3,
+          type: 'PROJECT_ACCESS_REVOKED',
+          userId: 2,
+          projectId: 1,
+        }),
+      );
 
       expect(realtimeServiceMock.emitToProject).toHaveBeenCalledWith(
         1,
