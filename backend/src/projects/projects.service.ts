@@ -712,6 +712,15 @@ export class ProjectsService {
       },
     });
 
+    if (member.role !== dto.role) {
+      await this.notificationsService.create({
+        userId: member.userId,
+        type: NotificationType.PROJECT_ROLE_UPDATED,
+        message: `Your project role was changed from ${member.role} to ${dto.role}`,
+        projectId,
+      });
+    }
+
     this.realtimeService.emitToProject(
       projectId,
       'member.role.updated',

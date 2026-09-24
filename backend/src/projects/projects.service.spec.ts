@@ -1629,6 +1629,15 @@ describe('ProjectsService', () => {
 
       prismaMock.projectMember.update.mockResolvedValue(updatedMember);
 
+      notificationsServiceMock.create.mockResolvedValue({
+        id: 1,
+        type: 'PROJECT_ROLE_UPDATED',
+        message: 'Your project role was changed from MEMBER to ADMIN',
+        userId: 2,
+        taskId: null,
+        projectId: 1,
+      });
+
       const result = await service.updateMemberRole(1, 1, 2, {
         role: 'ADMIN',
       });
@@ -1658,6 +1667,13 @@ describe('ProjectsService', () => {
         'member.role.updated',
         updatedMember,
       );
+
+      expect(notificationsServiceMock.create).toHaveBeenCalledWith({
+        userId: 2,
+        type: 'PROJECT_ROLE_UPDATED',
+        message: 'Your project role was changed from MEMBER to ADMIN',
+        projectId: 1,
+      });
 
       expect(result).toEqual(updatedMember);
     });
@@ -1691,6 +1707,13 @@ describe('ProjectsService', () => {
 
       const result = await service.updateMemberRole(1, 1, 2, {
         role: 'MEMBER',
+      });
+
+      expect(notificationsServiceMock.create).toHaveBeenCalledWith({
+        userId: 1,
+        type: 'PROJECT_ROLE_UPDATED',
+        message: 'Your project role was changed from ADMIN to MEMBER',
+        projectId: 1,
       });
 
       expect(result).toEqual(updatedMember);
