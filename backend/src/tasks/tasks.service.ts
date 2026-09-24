@@ -705,17 +705,47 @@ export class TasksService {
   async remove(userId: number, taskId: number) {
     const task = await this.findOne(userId, taskId);
 
-    const activity = await this.prisma.$transaction(async (tx) => {
-      const createdActivity =
-        await this.activitiesService.createWithTransaction(
-          tx,
+    const recipientIds = Array.from(
+      new Set(
+        [task.reporter?.id, task.assignee?.id].filter(
+          (id): id is number => id !== null && id !== undefined,
+        ),
+      ),
+    ).filter((id) => id !== userId);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const existingNotifications = await tx.notification.findMany({
+        where: {
           taskId,
-          userId,
-          ActivityType.TASK_DELETED,
-          `Task "${task.title}" deleted`,
-          undefined,
-          task.projectId!,
-        );
+        },
+        select: {
+          userId: true,
+        },
+      });
+
+      const activity = await this.activitiesService.createWithTransaction(
+        tx,
+        taskId,
+        userId,
+        ActivityType.TASK_DELETED,
+        `Task "${task.title}" deleted`,
+        undefined,
+        task.projectId!,
+      );
+
+      const notifications = [];
+
+      for (const recipientId of recipientIds) {
+        const notification =
+          await this.notificationsService.createWithTransaction(tx, {
+            userId: recipientId,
+            type: NotificationType.TASK_DELETED,
+            message: `Task "${task.title}" was deleted`,
+            projectId: task.projectId!,
+          });
+
+        notifications.push(notification);
+      }
 
       await tx.task.delete({
         where: {
@@ -723,18 +753,50 @@ export class TasksService {
         },
       });
 
-      return createdActivity;
+      return {
+        activity,
+        notifications,
+        existingNotifications,
+      };
     });
+
+    const affectedUserIds = Array.from(
+      new Set([
+        ...result.existingNotifications.map(
+          (notification) => notification.userId,
+        ),
+        ...result.notifications.map((notification) => notification.userId),
+      ]),
+    );
 
     this.realtimeService.emitToProject(
       task.projectId!,
       'activity.created',
-      activity,
+      result.activity,
     );
 
     this.realtimeService.emitToProject(task.projectId!, 'task.deleted', {
       taskId,
     });
+
+    for (const affectedUserId of affectedUserIds) {
+      this.realtimeService.emitToUser(
+        affectedUserId,
+        'notification.task.deleted',
+        {
+          taskId,
+          projectId: task.projectId!,
+        },
+      );
+    }
+
+    for (const notification of result.notifications) {
+      this.realtimeService.emitToUser(
+        notification.userId,
+        'notification.created',
+        notification,
+      );
+    }
 
     return {
       message: 'Task deleted successfully',

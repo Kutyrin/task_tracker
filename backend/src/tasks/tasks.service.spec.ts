@@ -30,6 +30,14 @@ jest.mock('@prisma/client', () => {
       MEDIUM: 'MEDIUM',
       HIGH: 'HIGH',
     },
+    NotificationType: {
+      TASK_ASSIGNED: 'TASK_ASSIGNED',
+      TASK_DELETED: 'TASK_DELETED',
+      COMMENT_ADDED: 'COMMENT_ADDED',
+      PROJECT_MEMBER_ADDED: 'PROJECT_MEMBER_ADDED',
+      PROJECT_ROLE_UPDATED: 'PROJECT_ROLE_UPDATED',
+      PROJECT_ACCESS_REVOKED: 'PROJECT_ACCESS_REVOKED',
+    },
   };
 });
 
@@ -2971,12 +2979,20 @@ describe('TasksService', () => {
     });
   });
   describe('remove', () => {
-    it('should delete a task, create TASK_DELETED activity, and emit realtime events', async () => {
+    it('should delete a task, create deletion activity and notifications, and emit realtime events', async () => {
       const task = {
         id: 10,
         title: 'Task to delete',
         projectId: 1,
         columnId: 1,
+        reporter: {
+          id: 2,
+          email: 'reporter@example.com',
+        },
+        assignee: {
+          id: 3,
+          email: 'assignee@example.com',
+        },
       };
 
       const activity = {
@@ -2985,8 +3001,26 @@ describe('TasksService', () => {
         message: 'Task "Task to delete" deleted',
         user: {
           id: 1,
-          email: 'user@example.com',
+          email: 'owner@example.com',
         },
+      };
+
+      const reporterNotification = {
+        id: 300,
+        type: 'TASK_DELETED',
+        message: 'Task "Task to delete" was deleted',
+        userId: 2,
+        taskId: null,
+        projectId: 1,
+      };
+
+      const assigneeNotification = {
+        id: 301,
+        type: 'TASK_DELETED',
+        message: 'Task "Task to delete" was deleted',
+        userId: 3,
+        taskId: null,
+        projectId: 1,
       };
 
       prismaMock.task.findUnique.mockResolvedValue(task);
@@ -2996,8 +3030,35 @@ describe('TasksService', () => {
         userId: 1,
       });
 
+      mapTaskMock.mockReturnValue({
+        id: 10,
+        title: 'Task to delete',
+        projectId: 1,
+        reporter: {
+          id: 2,
+          email: 'reporter@example.com',
+        },
+        assignee: {
+          id: 3,
+          email: 'assignee@example.com',
+        },
+      });
+
       prismaMock.$transaction.mockImplementation(async (callback) => {
         const tx = {
+          notification: {
+            findMany: jest.fn().mockResolvedValue([
+              {
+                userId: 2,
+              },
+              {
+                userId: 3,
+              },
+              {
+                userId: 4,
+              },
+            ]),
+          },
           task: {
             delete: jest.fn().mockResolvedValue(task),
           },
@@ -3005,7 +3066,20 @@ describe('TasksService', () => {
 
         activitiesServiceMock.createWithTransaction.mockResolvedValue(activity);
 
+        notificationsServiceMock.createWithTransaction
+          .mockResolvedValueOnce(reporterNotification)
+          .mockResolvedValueOnce(assigneeNotification);
+
         const result = await callback(tx);
+
+        expect(tx.notification.findMany).toHaveBeenCalledWith({
+          where: {
+            taskId: 10,
+          },
+          select: {
+            userId: true,
+          },
+        });
 
         expect(tx.task.delete).toHaveBeenCalledWith({
           where: {
@@ -3028,6 +3102,24 @@ describe('TasksService', () => {
         1,
       );
 
+      expect(
+        notificationsServiceMock.createWithTransaction,
+      ).toHaveBeenNthCalledWith(1, expect.anything(), {
+        userId: 2,
+        type: 'TASK_DELETED',
+        message: 'Task "Task to delete" was deleted',
+        projectId: 1,
+      });
+
+      expect(
+        notificationsServiceMock.createWithTransaction,
+      ).toHaveBeenNthCalledWith(2, expect.anything(), {
+        userId: 3,
+        type: 'TASK_DELETED',
+        message: 'Task "Task to delete" was deleted',
+        projectId: 1,
+      });
+
       expect(realtimeServiceMock.emitToProject).toHaveBeenNthCalledWith(
         1,
         1,
@@ -3042,6 +3134,45 @@ describe('TasksService', () => {
         {
           taskId: 10,
         },
+      );
+
+      expect(realtimeServiceMock.emitToUser).toHaveBeenCalledWith(
+        2,
+        'notification.task.deleted',
+        {
+          taskId: 10,
+          projectId: 1,
+        },
+      );
+
+      expect(realtimeServiceMock.emitToUser).toHaveBeenCalledWith(
+        3,
+        'notification.task.deleted',
+        {
+          taskId: 10,
+          projectId: 1,
+        },
+      );
+
+      expect(realtimeServiceMock.emitToUser).toHaveBeenCalledWith(
+        4,
+        'notification.task.deleted',
+        {
+          taskId: 10,
+          projectId: 1,
+        },
+      );
+
+      expect(realtimeServiceMock.emitToUser).toHaveBeenCalledWith(
+        2,
+        'notification.created',
+        reporterNotification,
+      );
+
+      expect(realtimeServiceMock.emitToUser).toHaveBeenCalledWith(
+        3,
+        'notification.created',
+        assigneeNotification,
       );
 
       expect(result).toEqual({
