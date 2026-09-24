@@ -24,6 +24,7 @@ import { ActivityType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { CommentsService } from './comments.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('CommentsService', () => {
   let service: CommentsService;
@@ -48,6 +49,11 @@ describe('CommentsService', () => {
   let realtimeServiceMock: {
     emitToTask: jest.Mock;
     emitToProject: jest.Mock;
+    emitToUser: jest.Mock;
+  };
+
+  let notificationsServiceMock: {
+    createWithTransaction: jest.Mock;
   };
 
   beforeEach(() => {
@@ -71,11 +77,17 @@ describe('CommentsService', () => {
     realtimeServiceMock = {
       emitToTask: jest.fn(),
       emitToProject: jest.fn(),
+      emitToUser: jest.fn(),
+    };
+
+    notificationsServiceMock = {
+      createWithTransaction: jest.fn(),
     };
 
     service = new CommentsService(
       prismaMock as unknown as PrismaService,
       realtimeServiceMock as unknown as RealtimeService,
+      notificationsServiceMock as unknown as NotificationsService,
     );
   });
 
@@ -88,6 +100,8 @@ describe('CommentsService', () => {
     projectId: 1,
     issueNumber: 15,
     title: 'Implement API',
+    reporterId: null,
+    assigneeId: null,
     project: {
       key: 'TASK',
     },
@@ -154,6 +168,8 @@ describe('CommentsService', () => {
           projectId: true,
           issueNumber: true,
           title: true,
+          reporterId: true,
+          assigneeId: true,
           project: {
             select: {
               key: true,
@@ -232,6 +248,121 @@ describe('CommentsService', () => {
       );
 
       expect(result).toEqual(comment);
+    });
+
+    it('should notify task reporter and assignee when a comment is added', async () => {
+      const commentTask = {
+        ...task,
+        reporterId: 2,
+        assigneeId: 3,
+      };
+
+      const comment = {
+        id: 11,
+        content: 'New comment',
+        createdAt: new Date('2026-09-10T11:00:00.000Z'),
+        updatedAt: new Date('2026-09-10T11:00:00.000Z'),
+        taskId: 100,
+        userId: 1,
+        user: {
+          id: 1,
+          email: 'user@example.com',
+        },
+      };
+
+      const activity = {
+        id: 51,
+        type: ActivityType.COMMENT_ADDED,
+        message: 'Comment added',
+        metadata: {
+          commentId: 11,
+        },
+        createdAt: new Date('2026-09-10T11:00:00.000Z'),
+        user: {
+          id: 1,
+          email: 'user@example.com',
+        },
+      };
+
+      const tx = {
+        comment: {
+          create: jest.fn().mockResolvedValue(comment),
+        },
+        activity: {
+          create: jest.fn().mockResolvedValue(activity),
+        },
+      };
+
+      prismaMock.task.findUnique.mockResolvedValue(commentTask);
+      prismaMock.projectMember.findFirst.mockResolvedValue({
+        role: 'MEMBER',
+      });
+
+      prismaMock.$transaction.mockImplementation(async (callback) =>
+        callback(tx),
+      );
+
+      notificationsServiceMock.createWithTransaction
+        .mockResolvedValueOnce({
+          id: 1,
+          type: 'COMMENT_ADDED',
+          message: 'New comment on task "Implement API"',
+          userId: 2,
+          taskId: 100,
+          projectId: 1,
+        })
+        .mockResolvedValueOnce({
+          id: 2,
+          type: 'COMMENT_ADDED',
+          message: 'New comment on task "Implement API"',
+          userId: 3,
+          taskId: 100,
+          projectId: 1,
+        });
+
+      await service.create(1, 100, {
+        content: 'New comment',
+      });
+
+      expect(
+        notificationsServiceMock.createWithTransaction,
+      ).toHaveBeenNthCalledWith(1, expect.anything(), {
+        userId: 2,
+        type: 'COMMENT_ADDED',
+        message: 'New comment on task "Implement API"',
+        taskId: 100,
+        projectId: 1,
+      });
+
+      expect(
+        notificationsServiceMock.createWithTransaction,
+      ).toHaveBeenNthCalledWith(2, expect.anything(), {
+        userId: 3,
+        type: 'COMMENT_ADDED',
+        message: 'New comment on task "Implement API"',
+        taskId: 100,
+        projectId: 1,
+      });
+
+      expect(realtimeServiceMock.emitToUser).toHaveBeenNthCalledWith(
+        1,
+        2,
+        'notification.created',
+        expect.objectContaining({
+          userId: 2,
+          taskId: 100,
+        }),
+      );
+
+      expect(realtimeServiceMock.emitToUser).toHaveBeenNthCalledWith(
+        2,
+        3,
+        'notification.created',
+        expect.objectContaining({
+          userId: 3,
+          taskId: 100,
+        }),
+      );
     });
 
     it('should throw NotFoundException when task does not exist', async () => {

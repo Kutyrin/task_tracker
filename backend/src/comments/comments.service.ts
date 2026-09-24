@@ -4,8 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { ActivityType, Prisma, ProjectRole } from '@prisma/client';
+import {
+  ActivityType,
+  NotificationType,
+  Prisma,
+  ProjectRole,
+} from '@prisma/client';
 
+import { NotificationsService } from '../notifications/notifications.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -30,6 +36,7 @@ export class CommentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtimeService: RealtimeService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private async getTaskForProjectMember(userId: number, taskId: number) {
@@ -42,6 +49,8 @@ export class CommentsService {
         projectId: true,
         issueNumber: true,
         title: true,
+        reporterId: true,
+        assigneeId: true,
         project: {
           select: {
             key: true,
@@ -117,9 +126,29 @@ export class CommentsService {
         select: activitySelect,
       });
 
+      const recipientIds = [task.reporterId, task.assigneeId].filter(
+        (id): id is number => id !== null && id !== userId,
+      );
+
+      const notifications = [];
+
+      for (const recipientId of new Set(recipientIds)) {
+        const notification =
+          await this.notificationsService.createWithTransaction(tx, {
+            userId: recipientId,
+            type: NotificationType.COMMENT_ADDED,
+            message: `New comment on task "${task.title}"`,
+            taskId: task.id,
+            projectId: task.projectId!,
+          });
+
+        notifications.push(notification);
+      }
+
       return {
         comment,
         activity,
+        notifications,
       };
     });
 
@@ -138,6 +167,14 @@ export class CommentsService {
           : null,
       },
     });
+
+    for (const notification of result.notifications) {
+      this.realtimeService.emitToUser(
+        notification.userId,
+        'notification.created',
+        notification,
+      );
+    }
 
     return result.comment;
   }
