@@ -32,6 +32,7 @@ jest.mock('@prisma/client', () => {
   };
 });
 
+import { NotificationsService } from '../notifications/notifications.service';
 import { SortOrder, TaskSortBy } from './dto/task-query.dto';
 import { NotFoundException } from '@nestjs/common';
 import { ActivitiesService } from '../activities/activities.service';
@@ -77,6 +78,11 @@ describe('TasksService', () => {
 
   let realtimeServiceMock: {
     emitToProject: jest.Mock;
+    emitToUser: jest.Mock;
+  };
+
+  let notificationsServiceMock: {
+    createWithTransaction: jest.Mock;
   };
 
   const mapTaskMock = mapTask as jest.Mock;
@@ -111,12 +117,18 @@ describe('TasksService', () => {
 
     realtimeServiceMock = {
       emitToProject: jest.fn(),
+      emitToUser: jest.fn(),
+    };
+
+    notificationsServiceMock = {
+      createWithTransaction: jest.fn(),
     };
 
     service = new TasksService(
       prismaMock as unknown as PrismaService,
       activitiesServiceMock as unknown as ActivitiesService,
       realtimeServiceMock as unknown as RealtimeService,
+      notificationsServiceMock as unknown as NotificationsService,
     );
 
     mapTaskMock.mockImplementation((task) => ({
@@ -2185,6 +2197,92 @@ describe('TasksService', () => {
           from: 2,
           to: 3,
         },
+      );
+    });
+
+    it('should create notification when task is assigned to another user', async () => {
+      const existingTask = {
+        id: 10,
+        title: 'Task',
+        description: null,
+        dueDate: null,
+        priority: 'MEDIUM',
+        issueType: 'TASK',
+        assigneeId: 2,
+        projectId: 1,
+      };
+
+      const updatedTask = {
+        ...existingTask,
+        assigneeId: 3,
+      };
+
+      prismaMock.task.findUnique.mockResolvedValue(existingTask);
+
+      prismaMock.projectMember.findFirst
+        .mockResolvedValueOnce({
+          projectId: 1,
+          userId: 1,
+        })
+        .mockResolvedValueOnce({
+          projectId: 1,
+          userId: 3,
+        });
+
+      prismaMock.$transaction.mockImplementation(async (callback) =>
+        callback({
+          task: {
+            update: jest.fn().mockResolvedValue(updatedTask),
+          },
+        }),
+      );
+
+      activitiesServiceMock.createWithTransaction.mockResolvedValue({
+        id: 105,
+        type: 'ASSIGNEE_CHANGED',
+        taskId: 10,
+        userId: 1,
+      });
+
+      notificationsServiceMock.createWithTransaction.mockResolvedValue({
+        id: 1,
+        type: 'TASK_ASSIGNED',
+        message: 'You were assigned to task "Task"',
+        userId: 3,
+        taskId: 10,
+        projectId: 1,
+      });
+
+      mapTaskMock.mockReturnValue({
+        id: 10,
+        title: 'Task',
+        projectId: 1,
+      });
+
+      await service.update(1, 10, {
+        assigneeId: 3,
+      });
+
+      expect(
+        notificationsServiceMock.createWithTransaction,
+      ).toHaveBeenCalledWith(expect.anything(), {
+        userId: 3,
+        type: 'TASK_ASSIGNED',
+        message: 'You were assigned to task "Task"',
+        taskId: 10,
+        projectId: 1,
+      });
+
+      expect(realtimeServiceMock.emitToUser).toHaveBeenCalledWith(
+        3,
+        'notification.created',
+        expect.objectContaining({
+          id: 1,
+          type: 'TASK_ASSIGNED',
+          userId: 3,
+          taskId: 10,
+          projectId: 1,
+        }),
       );
     });
 
