@@ -11,6 +11,11 @@ import { useAppSelector } from '@/store/hooks';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
+interface TaskDeletedNotificationEvent {
+  taskId: number;
+  projectId: number;
+}
+
 export function useNotificationsRealtime() {
   const queryClient = useQueryClient();
   const accessToken = useAppSelector((state) => state.auth.accessToken);
@@ -56,10 +61,49 @@ export function useNotificationsRealtime() {
       );
     };
 
+    const handleTaskDeleted = ({ taskId }: TaskDeletedNotificationEvent) => {
+      queryClient.setQueryData(
+        notificationsQueryKey,
+        (
+          current:
+            | {
+                data: Notification[];
+                unreadCount: number;
+              }
+            | undefined,
+        ) => {
+          if (!current) {
+            return current;
+          }
+
+          const removedNotifications = current.data.filter(
+            (notification) => notification.taskId === taskId,
+          );
+
+          if (removedNotifications.length === 0) {
+            return current;
+          }
+
+          const removedUnreadCount = removedNotifications.filter(
+            (notification) => notification.readAt === null,
+          ).length;
+
+          return {
+            data: current.data.filter(
+              (notification) => notification.taskId !== taskId,
+            ),
+            unreadCount: Math.max(0, current.unreadCount - removedUnreadCount),
+          };
+        },
+      );
+    };
+
     socket.on('notification.created', handleNotificationCreated);
+    socket.on('notification.task.deleted', handleTaskDeleted);
 
     return () => {
       socket.off('notification.created', handleNotificationCreated);
+      socket.off('notification.task.deleted', handleTaskDeleted);
       socket.disconnect();
     };
   }, [accessToken, queryClient]);

@@ -2,6 +2,7 @@ import api from '@/lib/api';
 
 export type NotificationType =
   | 'TASK_ASSIGNED'
+  | 'TASK_DELETED'
   | 'COMMENT_ADDED'
   | 'PROJECT_MEMBER_ADDED'
   | 'PROJECT_ROLE_UPDATED'
