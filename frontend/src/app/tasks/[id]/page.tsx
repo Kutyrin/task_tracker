@@ -13,6 +13,7 @@ import { ActivitySection } from '@/components/tasks/activity-section';
 import { useTask } from '@/hooks/tasks/use-task';
 import { useDeleteTask } from '@/hooks/tasks/use-delete-task';
 import { useProjectMembers } from '@/hooks/projects/use-project-members';
+import { AttachmentsSection } from '@/components/tasks/attachments-section';
 
 function TaskContent({ taskId }: { taskId: number }) {
   const router = useRouter();
@@ -141,10 +142,8 @@ function TaskContent({ taskId }: { taskId: number }) {
             <TaskDetails task={task} />
           )}
         </div>
-        <CommentsSection
-          taskId={task.id}
-          members={members ?? []}
-        />
+        <CommentsSection taskId={task.id} members={members ?? []} />
+        <AttachmentsSection taskId={task.id} members={members ?? []} />
         <ActivitySection taskId={task.id} />
       </div>
     </main>

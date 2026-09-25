@@ -5,6 +5,7 @@ import { io } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
 
+import type { Attachment } from '@/lib/attachments';
 import type { Activity } from '@/lib/activities';
 import type { Comment } from '@/lib/comments';
 import type { Task } from '@/lib/tasks';
@@ -35,6 +36,15 @@ interface ActivityCreatedPayload extends Activity {
 interface TaskLabelRealtimePayload {
   id: number;
   name: string;
+  taskId: number;
+}
+
+interface AttachmentUploadedPayload extends Attachment {
+  taskId: number;
+}
+
+interface AttachmentDeletedPayload {
+  id: number;
   taskId: number;
 }
 
@@ -132,6 +142,11 @@ export function useTaskRealtime(
 
       queryClient.removeQueries({
         queryKey: ['labels', 'tasks', taskId],
+        exact: true,
+      });
+
+      queryClient.removeQueries({
+        queryKey: ['attachments', taskId],
         exact: true,
       });
 
@@ -257,6 +272,39 @@ export function useTaskRealtime(
       });
     };
 
+    const addAttachment = (attachment: AttachmentUploadedPayload) => {
+      if (attachment.taskId !== taskId) {
+        return;
+      }
+
+      queryClient.setQueryData<Attachment[]>(
+        ['attachments', taskId],
+        (currentAttachments) => {
+          if (currentAttachments?.some((item) => item.id === attachment.id)) {
+            return currentAttachments;
+          }
+
+          return [attachment, ...(currentAttachments ?? [])];
+        },
+      );
+    };
+
+    const deleteAttachment = ({
+      id,
+      taskId: deletedTaskId,
+    }: AttachmentDeletedPayload) => {
+      if (deletedTaskId !== taskId) {
+        return;
+      }
+
+      queryClient.setQueryData<Attachment[]>(
+        ['attachments', taskId],
+        (currentAttachments) =>
+          currentAttachments?.filter((attachment) => attachment.id !== id) ??
+          [],
+      );
+    };
+
     socket.on('connect', () => {
       socket.emit('join-task', taskId);
       socket.emit('join-project', projectId);
@@ -272,6 +320,9 @@ export function useTaskRealtime(
 
     socket.on('activity.created', addActivity);
 
+    socket.on('attachment.uploaded', addAttachment);
+    socket.on('attachment.deleted', deleteAttachment);
+
     socket.on('label.added', addLabel);
     socket.on('label.removed', removeLabel);
 
@@ -285,6 +336,9 @@ export function useTaskRealtime(
       socket.off('task.deleted', deleteTask);
 
       socket.off('activity.created', addActivity);
+
+      socket.off('attachment.uploaded', addAttachment);
+      socket.off('attachment.deleted', deleteAttachment);
 
       socket.off('label.added', addLabel);
       socket.off('label.removed', removeLabel);
