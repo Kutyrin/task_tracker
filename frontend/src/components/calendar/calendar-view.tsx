@@ -5,6 +5,8 @@ import { useMemo, useState } from 'react';
 
 import { useCalendarTasks } from '@/hooks/calendar/use-calendar-tasks';
 import type { Task, TaskPriority } from '@/lib/tasks';
+import { useCalendarRealtime } from '@/hooks/realtime/use-calendar-realtime';
+import { useProjects } from '@/hooks/projects/use-projects';
 
 const weekDays = [
   'Monday',
@@ -151,6 +153,15 @@ function CalendarTask({ task }: { task: Task }) {
 }
 
 export function CalendarView() {
+  const { data: projects } = useProjects();
+
+  const projectIds = useMemo(
+    () => projects?.map((project) => project.id) ?? [],
+    [projects],
+  );
+
+  useCalendarRealtime(projectIds);
+
   const [currentMonth, setCurrentMonth] = useState(() => {
     const today = new Date();
 
@@ -213,7 +224,25 @@ export function CalendarView() {
     <section>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500">Task Tracker</p>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/projects`}
+              className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+            >
+              Back to Projects
+            </Link>
+
+            <Link
+              href="/dashboard"
+              className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
+
+          <p className="text-sm mt-2 font-medium text-slate-500">
+            Task Tracker
+          </p>
 
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
             Calendar
@@ -299,7 +328,7 @@ export function CalendarView() {
               return (
                 <div
                   key={day.dateKey}
-                  className={`min-h-40 border-b border-r border-slate-200 p-2 last:border-r-0 ${
+                  className={`min-h-40 border-b border-r border-slate-200 p-2 ${
                     day.isCurrentMonth ? 'bg-white' : 'bg-slate-50/70'
                   }`}
                 >

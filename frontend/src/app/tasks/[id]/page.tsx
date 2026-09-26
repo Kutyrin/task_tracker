@@ -94,12 +94,23 @@ function TaskContent({ taskId }: { taskId: number }) {
   return (
     <main className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-4xl">
-        <Link
-          href={task.column ? `/boards/${task.column.boardId}` : '/projects'}
-          className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
-        >
-          Back to board
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          {task.projectId && (
+            <Link
+              href={`/projects/${task.projectId}`}
+              className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+            >
+              Back to Project
+            </Link>
+          )}
+
+          <Link
+            href="/dashboard"
+            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          >
+            Back to Dashboard
+          </Link>
+        </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
           <button
