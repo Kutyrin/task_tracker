@@ -122,12 +122,19 @@ function DashboardContent() {
           <LogoutButton />
         </div>
 
-        <div className="mt-8">
+        <div className="mt-8 flex flex-wrap gap-3">
           <Link
             href="/projects"
             className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
           >
             View projects
+          </Link>
+
+          <Link
+            href="/calendar"
+            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          >
+            Open calendar
           </Link>
         </div>
 
