@@ -11,6 +11,7 @@ import { SortOrder, TaskQueryDto, TaskSortBy } from './dto/task-query.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { mapTask, taskRelations } from './task.mapper';
 import { RealtimeService } from '../realtime/realtime.service';
+import { CalendarQueryDto } from './dto/calendar-query.dto';
 
 @Injectable()
 export class TasksService {
@@ -453,6 +454,49 @@ export class TasksService {
         sortBy,
         sortOrder,
       },
+    };
+  }
+
+  async findCalendar(userId: number, query: CalendarQueryDto) {
+    const from = new Date(query.from);
+    const to = new Date(query.to);
+
+    const projectMemberships = await this.prisma.projectMember.findMany({
+      where: {
+        userId,
+      },
+      select: {
+        projectId: true,
+      },
+    });
+
+    const projectIds = projectMemberships.map(
+      (membership) => membership.projectId,
+    );
+
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        projectId: {
+          in: projectIds,
+        },
+        dueDate: {
+          gte: from,
+          lt: to,
+        },
+      },
+      orderBy: [
+        {
+          dueDate: 'asc',
+        },
+        {
+          id: 'asc',
+        },
+      ],
+      include: taskRelations,
+    });
+
+    return {
+      data: tasks.map(mapTask),
     };
   }
 
