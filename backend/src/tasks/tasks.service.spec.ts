@@ -48,7 +48,7 @@ import { ActivitiesService } from '../activities/activities.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { TasksService } from './tasks.service';
-import { mapTask } from './task.mapper';
+import { mapTask, taskRelations } from './task.mapper';
 
 jest.mock('./task.mapper', () => ({
   mapTask: jest.fn(),
@@ -1802,6 +1802,155 @@ describe('TasksService', () => {
       });
 
       expect(mapTaskMock).not.toHaveBeenCalled();
+    });
+  });
+  describe('findCalendar', () => {
+    it('should return tasks with due dates inside the requested range', async () => {
+      const tasks = [
+        {
+          id: 10,
+          title: 'Task 1',
+          dueDate: new Date('2026-09-10T12:00:00.000Z'),
+        },
+        {
+          id: 11,
+          title: 'Task 2',
+          dueDate: new Date('2026-09-20T12:00:00.000Z'),
+        },
+      ];
+
+      prismaMock.projectMember.findMany.mockResolvedValue([
+        {
+          projectId: 1,
+        },
+        {
+          projectId: 2,
+        },
+      ]);
+
+      prismaMock.task.findMany.mockResolvedValue(tasks);
+
+      mapTaskMock
+        .mockImplementationOnce((task) => ({
+          ...task,
+          issueKey: 'TT-10',
+        }))
+        .mockImplementationOnce((task) => ({
+          ...task,
+          issueKey: 'TT-11',
+        }));
+
+      const result = await service.findCalendar(1, {
+        from: '2026-09-01T00:00:00.000Z',
+        to: '2026-10-01T00:00:00.000Z',
+      });
+
+      expect(prismaMock.projectMember.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 1,
+        },
+        select: {
+          projectId: true,
+        },
+      });
+
+      expect(prismaMock.task.findMany).toHaveBeenCalledWith({
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+          dueDate: {
+            gte: new Date('2026-09-01T00:00:00.000Z'),
+            lt: new Date('2026-10-01T00:00:00.000Z'),
+          },
+        },
+        orderBy: [
+          {
+            dueDate: 'asc',
+          },
+          {
+            id: 'asc',
+          },
+        ],
+        include: taskRelations,
+      });
+
+      expect(result).toEqual({
+        data: [
+          {
+            ...tasks[0],
+            issueKey: 'TT-10',
+          },
+          {
+            ...tasks[1],
+            issueKey: 'TT-11',
+          },
+        ],
+      });
+    });
+
+    it('should return an empty list when the user has no projects', async () => {
+      prismaMock.projectMember.findMany.mockResolvedValue([]);
+
+      prismaMock.task.findMany.mockResolvedValue([]);
+
+      const result = await service.findCalendar(1, {
+        from: '2026-09-01T00:00:00.000Z',
+        to: '2026-10-01T00:00:00.000Z',
+      });
+
+      expect(prismaMock.task.findMany).toHaveBeenCalledWith({
+        where: {
+          projectId: {
+            in: [],
+          },
+          dueDate: {
+            gte: new Date('2026-09-01T00:00:00.000Z'),
+            lt: new Date('2026-10-01T00:00:00.000Z'),
+          },
+        },
+        orderBy: [
+          {
+            dueDate: 'asc',
+          },
+          {
+            id: 'asc',
+          },
+        ],
+        include: taskRelations,
+      });
+
+      expect(result).toEqual({
+        data: [],
+      });
+    });
+
+    it('should return tasks from all projects the user belongs to', async () => {
+      prismaMock.projectMember.findMany.mockResolvedValue([
+        {
+          projectId: 5,
+        },
+        {
+          projectId: 8,
+        },
+      ]);
+
+      prismaMock.task.findMany.mockResolvedValue([]);
+
+      await service.findCalendar(42, {
+        from: '2026-09-01T00:00:00.000Z',
+        to: '2026-10-01T00:00:00.000Z',
+      });
+
+      expect(prismaMock.task.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            projectId: {
+              in: [5, 8],
+            },
+          }),
+        }),
+      );
     });
   });
   describe('update', () => {
