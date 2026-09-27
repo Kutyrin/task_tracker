@@ -7,6 +7,11 @@ import { useCalendarTasks } from '@/hooks/calendar/use-calendar-tasks';
 import type { Task, TaskPriority } from '@/lib/tasks';
 import { useCalendarRealtime } from '@/hooks/realtime/use-calendar-realtime';
 import { useProjects } from '@/hooks/projects/use-projects';
+import {
+  buildCalendarDays,
+  getCalendarRange,
+  getDateKey,
+} from '@/lib/calendar-utils';
 
 const weekDays = [
   'Monday',
@@ -29,75 +34,6 @@ const priorityLabels: Record<TaskPriority, string> = {
   MEDIUM: 'Medium',
   HIGH: 'High',
 };
-
-interface CalendarDay {
-  date: Date;
-  dateKey: string;
-  isCurrentMonth: boolean;
-  isToday: boolean;
-}
-
-function getDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-}
-
-function getMondayIndex(date: Date) {
-  return (date.getDay() + 6) % 7;
-}
-
-function getMonthStart(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function getMonthEnd(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
-}
-
-function getCalendarRange(month: Date) {
-  const monthStart = getMonthStart(month);
-  const monthEnd = getMonthEnd(month);
-
-  const start = new Date(monthStart);
-  start.setDate(start.getDate() - getMondayIndex(start));
-
-  const end = new Date(monthEnd);
-  const remainingDays = 6 - getMondayIndex(end);
-
-  end.setDate(end.getDate() + remainingDays);
-
-  return {
-    start,
-    end,
-  };
-}
-
-function buildCalendarDays(month: Date): CalendarDay[] {
-  const { start, end } = getCalendarRange(month);
-
-  const todayKey = getDateKey(new Date());
-  const days: CalendarDay[] = [];
-
-  const current = new Date(start);
-
-  while (current <= end) {
-    days.push({
-      date: new Date(current),
-      dateKey: getDateKey(current),
-      isCurrentMonth:
-        current.getMonth() === month.getMonth() &&
-        current.getFullYear() === month.getFullYear(),
-      isToday: getDateKey(current) === todayKey,
-    });
-
-    current.setDate(current.getDate() + 1);
-  }
-
-  return days;
-}
 
 function formatMonthTitle(date: Date) {
   return new Intl.DateTimeFormat('en-US', {
@@ -226,7 +162,7 @@ export function CalendarView() {
         <div>
           <div className="flex flex-wrap gap-3">
             <Link
-              href={`/projects`}
+              href="/projects"
               className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
             >
               Back to Projects
