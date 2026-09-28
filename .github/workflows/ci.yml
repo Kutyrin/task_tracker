@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   backend:
-    name: Backend tests and build
+    name: Backend unit, API E2E and build
     runs-on: ubuntu-latest
 
     services:
