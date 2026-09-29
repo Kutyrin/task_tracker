@@ -26,9 +26,7 @@ services:
       - uploads_data:/app/uploads
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ${GHCR_IMAGE_NAMESPACE}/backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     user: '1000:1000'
     security_opt:
@@ -63,11 +61,7 @@ services:
         condition: service_completed_successfully
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    image: ${GHCR_IMAGE_NAMESPACE}/frontend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
