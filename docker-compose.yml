@@ -16,11 +16,19 @@ services:
       timeout: 5s
       retries: 10
 
+  uploads-init:
+    image: node:24-bookworm-slim
+    restart: 'no'
+    command: ['sh', '-c', 'chown -R 1000:1000 /app/uploads']
+    volumes:
+      - uploads_data:/app/uploads
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    user: '1000:1000'
     env_file:
       - ./backend/.env
     environment:
@@ -47,6 +55,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      uploads-init:
+        condition: service_completed_successfully
 
   frontend:
     build:
