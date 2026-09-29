@@ -76,7 +76,7 @@ jobs:
         run: npm run test:e2e
 
   frontend:
-    name: Frontend tests and build
+    name: Frontend unit tests, lint and build
     runs-on: ubuntu-latest
 
     defaults:
