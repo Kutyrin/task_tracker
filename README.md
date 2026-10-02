@@ -1,41 +1,49 @@
 # Task Tracker
 
-A full-stack issue and project management application inspired by Jira and Kaiten.
+A full-stack issue and project management platform inspired by Jira and Kaiten. The project combines a NestJS REST API, a Next.js frontend, PostgreSQL persistence, role-based access control, real-time collaboration, Kanban workflows, notifications, file attachments, and calendar-based task tracking.
 
-A NestJS API and Next.js frontend support project management, Kanban workflows, task details, due-date calendars, project statistics, notifications, file attachments, and real-time updates. The complete application runs locally or through Docker Compose.
+The application is designed as a complete full-stack system rather than a simple CRUD demo. It includes authentication with access and refresh token rotation, project-level RBAC, transactional issue numbering, real-time synchronization through Socket.IO, automated testing, Docker-based local development, and a production CI/CD pipeline with Docker images published to GHCR and deployed to a VPS.
+
+## Demo
+
+Production:
+
+- Frontend: <https://app.mytasktrackeronline.ru>
+- API: <https://api.mytasktrackeronline.ru>
+- Health check: <https://api.mytasktrackeronline.ru/health>
 
 ## Current Features
 
 ### Backend
 
-* **Authentication:** registration, login, current user, JWT access and refresh tokens, refresh-token rotation, logout, and bcrypt password hashing.
-* **Projects:** CRUD, unique project keys, automatic owner membership, and member management by user ID or email.
-* **Access control:** project membership checks and `OWNER`, `ADMIN`, and `MEMBER` roles.
-* **Boards:** CRUD, default Backlog / To Do / In Progress / Done columns, column management and reordering.
-* **Issues:** CRUD, movement between columns, ordering, reporter, assignee, due date, and project-scoped issue keys such as `TASK-6`.
-* **Issue types:** `TASK`, `BUG`, `STORY`, `EPIC`; priorities: `LOW`, `MEDIUM`, `HIGH`.
-* **Issue queries:** search by key, title, or description; filters by column, type, priority, label names, and due-date range; pagination and sorting.
-* **Comments:** creation, listing, editing own comments, and deletion by the author or a project owner/admin.
-* **Labels:** project-scoped unique names, label management, and issue-label assignments.
-* **Activity history:** task creation and movement, field changes, comments, and label assignments; task and project activity endpoints.
-* **Attachments:** upload, list, download, and delete files attached to tasks. Uploads use multipart field `file`, with a 5 MiB limit and JPEG, PNG, GIF, WebP, PDF, and plain-text MIME types.
-* **Statistics:** dashboard totals across accessible projects and per-project statistics, including total and overdue tasks, with counts by priority, issue type, column, and assignee.
-* **Real-time updates:** Socket.IO events for projects, members, boards, columns, tasks, comments, labels, attachments, activity, and notifications.
-* **Calendar:** tasks with due dates in a requested date range across accessible projects.
-* **Notifications:** persistent user notifications for assignments, comments, task deletion, and membership changes, with unread counts and read actions.
-* **Health check:** `GET /health` checks database connectivity.
+- **Authentication:** registration, login, current user, JWT access and refresh tokens, refresh-token rotation, logout, and bcrypt password hashing.
+- **Projects:** CRUD, unique project keys, automatic owner membership, and member management by user ID or email.
+- **Access control:** project membership checks and `OWNER`, `ADMIN`, and `MEMBER` roles.
+- **Boards:** CRUD, default Backlog / To Do / In Progress / Done columns, column management, and reordering.
+- **Issues:** CRUD, movement between columns, ordering, reporter, assignee, due date, and project-scoped issue keys such as `TASK-6`.
+- **Issue types:** `TASK`, `BUG`, `STORY`, `EPIC`; priorities: `LOW`, `MEDIUM`, `HIGH`.
+- **Issue queries:** search by key, title, or description; filters by column, type, priority, label names, and due-date range; pagination and sorting.
+- **Comments:** creation, listing, editing own comments, and deletion by the author or a project owner/admin.
+- **Labels:** project-scoped unique names, label management, and issue-label assignments.
+- **Activity history:** task creation and movement, field changes, comments, label assignments, and project-level activity.
+- **Attachments:** upload, list, download, and delete files attached to tasks. Uploads use the multipart field `file`, with a 5 MiB limit and JPEG, PNG, GIF, WebP, PDF, and plain-text MIME types.
+- **Statistics:** dashboard totals across accessible projects and per-project statistics, including total and overdue tasks, with counts by priority, issue type, column, and assignee.
+- **Real-time updates:** Socket.IO events for projects, members, boards, columns, tasks, comments, labels, attachments, activity, and notifications.
+- **Calendar:** tasks with due dates in a requested date range across accessible projects.
+- **Notifications:** persistent user notifications for assignments, comments, task deletion, and membership changes, with unread counts and read actions.
+- **Health check:** `GET /health` verifies application and database availability.
 
 ### Frontend
 
-* Registration, login, logout, protected routes, session restoration, and automatic token refresh.
-* Project listing, creation, and deletion.
-* Project pages with members, roles, boards, labels, and activity history.
-* Kanban boards with task creation, filtering, drag-and-drop movement, ordering, and column management.
-* Task detail pages with editing, deletion, assignee and due-date fields, comments, labels, attachments, and activity.
-* Dashboard with project/task totals, overdue counts, and distributions by priority, issue type, and column.
-* Monthly calendar with due-date task links and month navigation.
-* Notification bell with unread count, related-item navigation, and individual/all-read actions.
-* Socket.IO subscriptions update project, board, task, dashboard, calendar, and notification data through TanStack Query.
+- Registration, login, logout, protected routes, session restoration, and automatic token refresh.
+- Project listing, creation, and deletion.
+- Project pages with members, roles, boards, labels, and activity history.
+- Kanban boards with task creation, filtering, drag-and-drop movement, ordering, and column management.
+- Task detail pages with editing, deletion, assignee and due-date fields, comments, labels, attachments, and activity.
+- Dashboard with project/task totals, overdue counts, and distributions by priority, issue type, and column.
+- Monthly calendar with due-date task links and month navigation.
+- Notification bell with unread count, related-item navigation, and individual/all-read actions.
+- Socket.IO subscriptions update project, board, task, dashboard, calendar, and notification data through TanStack Query.
 
 Routes:
 
@@ -65,7 +73,7 @@ Routes:
 | Backend testing       | Jest 30, SWC, Nest testing utilities, Supertest            |
 | Frontend testing      | Vitest 4, React Testing Library, jsdom, Playwright         |
 | Drag and drop         | dnd-kit                                                    |
-| Infrastructure        | Docker Compose, Dockerfiles, GitHub Actions                |
+| Infrastructure        | Docker Compose, Dockerfiles, Nginx, GitHub Actions, GHCR   |
 
 Recharts is installed, while current dashboard distributions are rendered with CSS bars.
 
@@ -73,10 +81,20 @@ Recharts is installed, while current dashboard distributions are rendered with C
 
 ```text
 .
+
 ├── .github/
 │   └── workflows/
-│       └── ci.yml
+│       ├── ci.yml
+│       └── deploy.yml
+│
+├── deploy/
+│   └── nginx/
+│       └── task-tracker.conf.example
+│
+├── .env.production.example
 ├── docker-compose.yml
+├── docker-compose.prod.yml
+│
 ├── backend/
 │   ├── Dockerfile
 │   ├── .dockerignore
@@ -100,6 +118,7 @@ Recharts is installed, while current dashboard distributions are rendered with C
 │   │   └── main.ts
 │   └── test/
 │       └── API E2E tests
+│
 └── frontend/
     ├── Dockerfile
     ├── .dockerignore
@@ -121,35 +140,41 @@ The backend uses feature modules, controllers for HTTP routes, services for busi
 
 ## Domain Model
 
-* `User` joins a `Project` through `ProjectMember`.
-* A project has boards, tasks, labels, activities, and notifications.
-* A board contains ordered `BoardColumn` records.
-* `Task` is the persistence model for an issue, with a reporter and optional assignee.
-* Tasks have comments, activity records, attachments, and labels.
-* `TaskLabel` connects tasks and labels.
-* `Notification` belongs to a user and can reference a task or project.
+- `User` joins a `Project` through `ProjectMember`.
+- A project has boards, tasks, labels, activities, and notifications.
+- A board contains ordered `BoardColumn` records.
+- `Task` is the persistence model for an issue, with a reporter and optional assignee.
+- Tasks have comments, activity records, attachments, and labels.
+- `TaskLabel` connects tasks and labels.
+- `Notification` belongs to a user and can reference a task or project.
 
 Issue numbers are generated per project by atomically incrementing `Project.issueSequence` inside a Prisma transaction. The project key and number form the display key, for example `TASK-6`.
 
 ## Roles
 
-* `OWNER`: project settings, members, board structure, labels, issues, and project deletion.
-* `ADMIN`: project settings, members subject to owner restrictions, board structure, labels, and issues.
-* `MEMBER`: project access, issue management and movement, comments, label assignments, and attachment uploads.
+- `OWNER`: project settings, members, board structure, labels, issues, and project deletion.
+- `ADMIN`: project settings, members subject to owner restrictions, board structure, labels, and issues.
+- `MEMBER`: project access, issue management and movement, comments, label assignments, and attachment uploads.
 
-Only the owner can delete a project or assign the admin role. Admins cannot manage another admin. The owner cannot be removed or reassigned through member management. Comment editing is restricted to the author; owners/admins can also delete other users' comments. Attachments can be deleted by their uploader or a project owner/admin.
+Only the owner can delete a project or assign the admin role. Admins cannot manage another admin. The owner cannot be removed or reassigned through member management.
+
+Comment editing is restricted to the author. Owners and admins can also delete other users' comments.
+
+Attachments can be deleted by their uploader or a project owner/admin.
 
 ## Docker
 
-The project can be started as a complete three-service stack:
+The project supports both local and production Docker Compose environments.
+
+### Local Architecture
 
 ```text
 PostgreSQL 17
-     │
-     ▼
+      │
+      ▼
 NestJS backend
-     │
-     ▼
+      │
+      ▼
 Next.js frontend
 ```
 
@@ -165,12 +190,43 @@ The backend waits for PostgreSQL health, applies Prisma migrations before startu
 
 The frontend uses `NEXT_PUBLIC_API_URL=http://localhost:3001`, because API requests originate from the user's browser.
 
+### Production Architecture
+
+```text
+Internet
+   │
+   ├── https://app.mytasktrackeronline.ru
+   │            │
+   │          Nginx
+   │            │
+   │        Frontend :3000
+   │
+   └── https://api.mytasktrackeronline.ru
+                │
+              Nginx
+                │
+            Backend :3001
+                │
+            PostgreSQL :5432
+```
+
+Production services run on a VPS.
+
+- Nginx terminates HTTPS and acts as a reverse proxy.
+- Let's Encrypt provides TLS certificates.
+- Frontend and backend containers are bound to localhost on the VPS.
+- PostgreSQL runs as a separate container with persistent storage.
+- Uploaded files are stored in persistent Docker storage.
+- Production images are pulled from GitHub Container Registry.
+
+Production configuration is stored in `.env.production` on the VPS and is not committed to the repository.
+
 ## Local Development
 
 ### Requirements
 
-* Node.js 24.x and npm
-* Docker with Docker Compose
+- Node.js 24.x and npm
+- Docker with Docker Compose
 
 Backend and frontend have separate `package.json` and lockfiles. Run npm commands in the corresponding directory.
 
@@ -180,9 +236,13 @@ Create `backend/.env`:
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5433/task_tracker"
+
 JWT_SECRET="replace-with-a-long-random-access-secret"
+
 JWT_REFRESH_SECRET="replace-with-a-different-long-random-refresh-secret"
+
 PORT=3001
+
 CORS_ORIGIN="http://localhost:3000"
 ```
 
@@ -197,7 +257,11 @@ node -e "require('node:fs').mkdirSync('uploads', { recursive: true })"
 npm run start:dev
 ```
 
-The backend runs at `http://localhost:3001`.
+The backend runs at:
+
+```text
+http://localhost:3001
+```
 
 Health check:
 
@@ -205,7 +269,7 @@ Health check:
 GET http://localhost:3001/health
 ```
 
-Use the following command when creating a new Prisma migration:
+Create a new Prisma migration with:
 
 ```bash
 npx prisma migrate dev --name <migration-name>
@@ -233,9 +297,27 @@ npm ci
 npm run dev
 ```
 
-The frontend runs at `http://localhost:3000`.
+The frontend runs at:
 
-Open `http://localhost:3000/register` to create an account or `http://localhost:3000/login` to sign in. Successful authentication opens `/dashboard`.
+```text
+http://localhost:3000
+```
+
+Open:
+
+```text
+http://localhost:3000/register
+```
+
+to create an account, or:
+
+```text
+http://localhost:3000/login
+```
+
+to sign in.
+
+Successful authentication opens `/dashboard`.
 
 ### Complete Docker Stack
 
@@ -287,9 +369,48 @@ npm start
 
 Frontend development and build scripts explicitly use Webpack.
 
+## Production Deployment
+
+Production deployment is automated with GitHub Actions.
+
+The deployment workflow:
+
+1. Runs after a successful CI workflow on `main`.
+2. Uses the CI commit SHA as the Docker image version.
+3. Connects to the VPS over SSH.
+4. Pulls the corresponding images from GHCR.
+5. Restarts the production stack with Docker Compose.
+6. Runs application health checks.
+7. Leaves the PostgreSQL and upload data in persistent Docker storage.
+
+Production services:
+
+```text
+Frontend      https://app.mytasktrackeronline.ru
+API           https://api.mytasktrackeronline.ru
+Health check  https://api.mytasktrackeronline.ru/health
+```
+
+Production environment variables are stored in `.env.production` on the VPS:
+
+```text
+NEXT_PUBLIC_API_URL
+GHCR_IMAGE_NAMESPACE
+POSTGRES_USER
+POSTGRES_PASSWORD
+POSTGRES_DB
+CORS_ORIGIN
+JWT_SECRET
+JWT_REFRESH_SECRET
+```
+
+Secrets are never committed to the repository.
+
 ## API Overview
 
-The API has no `/api` prefix. Protected HTTP routes require:
+The API has no `/api` prefix.
+
+Protected HTTP routes require:
 
 ```text
 Authorization: Bearer <accessToken>
@@ -317,10 +438,15 @@ Authorization: Bearer <accessToken>
 
 ```text
 GET /tasks?search=TASK-6
+
 GET /tasks?issueType=BUG&priority=HIGH
+
 GET /tasks?labels=backend,urgent
+
 GET /tasks?columnId=3
+
 GET /tasks?dueAfter=2026-09-01T00:00:00.000Z&dueBefore=2026-09-30T23:59:59.000Z
+
 GET /tasks?page=1&limit=20&sortBy=createdAt&sortOrder=desc
 ```
 
@@ -355,7 +481,11 @@ auth: {
 }
 ```
 
-Authenticated connections automatically join `user:<userId>`.
+Authenticated connections automatically join:
+
+```text
+user:<userId>
+```
 
 Clients can subscribe to project and task rooms with:
 
@@ -373,15 +503,21 @@ task.created
 task.updated
 task.moved
 task.deleted
+
 comment.created
 comment.updated
 comment.deleted
+
 label.added
 label.removed
+
 attachment.uploaded
 attachment.deleted
+
 activity.created
+
 project.access.revoked
+
 notification.created
 ```
 
@@ -457,9 +593,19 @@ http://localhost:3001
 
 GitHub Actions runs on pull requests and pushes to `main`, `master`, and `develop`.
 
-The workflow is defined in `.github/workflows/ci.yml`.
+The main CI workflow is defined in:
 
-The pipeline contains four jobs:
+```text
+.github/workflows/ci.yml
+```
+
+The production deployment workflow is defined in:
+
+```text
+.github/workflows/deploy.yml
+```
+
+### CI Pipeline
 
 ```text
 Backend
@@ -486,22 +632,66 @@ Frontend E2E
 ├── install Chromium
 ├── Playwright E2E
 └── upload Playwright report
+
+Publish Docker images
+├── build backend image
+├── build frontend image
+└── push images to GHCR
 ```
 
-Production deployment is not configured yet.
+Docker image publishing runs for `main`.
+
+Production deployment is triggered after a successful CI workflow on `main`.
+
+The deployment flow is:
+
+```text
+Pull Request
+     │
+     ▼
+   main
+     │
+     ▼
+   CI
+     │
+     ├── tests
+     ├── builds
+     ├── E2E
+     └── Docker images
+             │
+             ▼
+            GHCR
+             │
+             ▼
+    Deploy to production
+             │
+             ▼
+            VPS
+             │
+             ├── docker compose pull
+             ├── docker compose up -d
+             └── health checks
+```
+
+Docker Buildx with GitHub Actions cache is used when publishing production images.
 
 ## Security and Implementation Notes
 
-* Passwords and refresh tokens are stored as hashes.
-* API user projections exclude passwords.
-* The frontend stores access and refresh tokens in local storage and sends access tokens as bearer tokens.
-* Attachment downloads through the API check project membership and preserve the original filename.
-* Static `/uploads` serving remains enabled without a JWT guard.
-* HTTP CORS is configurable.
-* The Socket.IO gateway currently declares its own origin policy separately from HTTP CORS.
+- Passwords and refresh tokens are stored as hashes.
+- API user projections exclude passwords.
+- The frontend stores access and refresh tokens in local storage and sends access tokens as bearer tokens.
+- Attachment downloads through the API check project membership and preserve the original filename.
+- Static `/uploads` serving remains enabled without a JWT guard.
+- HTTP CORS is configurable.
+- The Socket.IO gateway declares its own origin policy separately from HTTP CORS.
+- Production traffic is terminated through Nginx with Let's Encrypt TLS certificates.
+- Backend and frontend containers are not exposed directly to the public network; external access is provided through Nginx.
+- Production secrets are stored outside the repository in `.env.production`.
 
 ## Remaining Work
 
-* Production deployment configuration.
-* Broader browser E2E coverage for projects, comments, labels, notifications, attachments, and RBAC edge cases.
-* Optional frontend coverage reporting with a dedicated Vitest coverage provider.
+- Broader Playwright E2E coverage for projects, comments, labels, notifications, attachments, and RBAC edge cases.
+- Optional frontend coverage reporting with a dedicated Vitest coverage provider.
+- Production backup strategy for PostgreSQL and uploaded files.
+- Basic production monitoring and centralized log collection.
+- Review whether direct static `/uploads` access should be replaced with authenticated attachment delivery.
