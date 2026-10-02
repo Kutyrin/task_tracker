@@ -241,6 +241,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
       - name: Validate production frontend API URL
         run: |
           test -n "$NEXT_PUBLIC_API_URL"
