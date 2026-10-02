@@ -7,12 +7,15 @@ import {
   ParseIntPipe,
   Post,
   Req,
+  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { createReadStream } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -44,11 +47,18 @@ export class AttachmentsController {
       storage: diskStorage({
         destination: './uploads',
         filename: (_req, file, callback) => {
-          const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}-${file.originalname}`;
+          const extension = file.originalname.includes('.')
+            ? `.${file.originalname.split('.').pop()}`
+            : '';
 
-          callback(null, uniqueName);
+          const safeExtension = extension
+            .toLowerCase()
+            .replace(/[^a-z0-9.]/g, '');
+
+          callback(null, `${Date.now()}-${randomUUID()}${safeExtension}`);
         },
       }),
+      defParamCharset: 'utf8',
       limits: {
         fileSize: 5 * 1024 * 1024,
       },
@@ -74,9 +84,34 @@ export class AttachmentsController {
   upload(
     @Req() req: AuthenticatedRequest,
     @Param('taskId', ParseIntPipe) taskId: number,
-    @UploadedFile() file: any,
+    @UploadedFile() file: Express.Multer.File,
   ) {
     return this.attachmentsService.upload(req.user.userId, taskId, file);
+  }
+
+  @Get(':attachmentId/download')
+  async download(
+    @Req() req: AuthenticatedRequest,
+    @Param('taskId', ParseIntPipe) taskId: number,
+    @Param('attachmentId', ParseIntPipe) attachmentId: number,
+  ) {
+    const attachment = await this.attachmentsService.getDownloadData(
+      req.user.userId,
+      taskId,
+      attachmentId,
+    );
+
+    const file = createReadStream(attachment.filePath);
+
+    const encodedFilename = encodeURIComponent(attachment.filename);
+
+    return new StreamableFile(file, {
+      type: attachment.mimeType,
+      length: attachment.size,
+      disposition:
+        `attachment; filename="download"; ` +
+        `filename*=UTF-8''${encodedFilename}`,
+    });
   }
 
   @Delete(':attachmentId')

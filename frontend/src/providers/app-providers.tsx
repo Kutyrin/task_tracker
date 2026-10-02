@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Provider } from 'react-redux';
 import { useEffect, useState } from 'react';
 
+import { NotificationsRealtime } from '@/providers/notifications-realtime';
 import { getCurrentUser } from '@/lib/auth';
 import { clearStoredTokens, getStoredTokens } from '@/lib/auth-storage';
 import { clearAuth, setCredentials, setTokens } from '@/store/auth-slice';
@@ -58,6 +59,7 @@ export function AppProviders({
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <AuthInitializer />
+        <NotificationsRealtime />
         {children}
       </QueryClientProvider>
     </Provider>

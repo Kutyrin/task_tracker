@@ -3,13 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { unlink } from 'node:fs/promises';
-import { join } from 'node:path';
+import { ActivityType } from '@prisma/client';
+import { access, unlink } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { basename, join } from 'node:path';
 
-import { ProjectRole } from '@prisma/client';
-
-import { RealtimeService } from '../realtime/realtime.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 
 interface UploadedFile {
   originalname: string;
@@ -96,6 +96,10 @@ export class AttachmentsService {
       throw new NotFoundException('File is required');
     }
 
+    if (!file.filename) {
+      throw new NotFoundException('Uploaded file name is missing');
+    }
+
     const attachment = await this.prisma.attachment.create({
       data: {
         filename: file.originalname,
@@ -121,13 +125,94 @@ export class AttachmentsService {
       },
     });
 
+    const activity = await this.prisma.activity.create({
+      data: {
+        taskId,
+        projectId: membership.projectId,
+        userId,
+        type: ActivityType.ATTACHMENT_ADDED,
+        message: `Attachment "${attachment.filename}" added`,
+        metadata: {
+          attachmentId: attachment.id,
+        },
+      },
+      select: {
+        id: true,
+        type: true,
+        message: true,
+        metadata: true,
+        createdAt: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+      },
+    });
+
     this.realtimeService.emitToProject(
       membership.projectId,
       'attachment.uploaded',
-      attachment,
+      {
+        ...attachment,
+        taskId,
+      },
+    );
+
+    this.realtimeService.emitToProject(
+      membership.projectId,
+      'activity.created',
+      {
+        ...activity,
+        taskId,
+      },
     );
 
     return attachment;
+  }
+
+  async getDownloadData(userId: number, taskId: number, attachmentId: number) {
+    await this.ensureTaskMember(userId, taskId);
+
+    const attachment = await this.prisma.attachment.findFirst({
+      where: {
+        id: attachmentId,
+        taskId,
+      },
+      select: {
+        id: true,
+        filename: true,
+        mimeType: true,
+        size: true,
+        url: true,
+      },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    const filename = basename(attachment.url);
+
+    if (!filename) {
+      throw new NotFoundException('Attachment file not found');
+    }
+
+    const filePath = join(process.cwd(), 'uploads', filename);
+
+    try {
+      await access(filePath, constants.F_OK);
+    } catch {
+      throw new NotFoundException('Attachment file not found');
+    }
+
+    return {
+      filePath,
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+    };
   }
 
   async remove(userId: number, taskId: number, attachmentId: number) {
@@ -140,6 +225,7 @@ export class AttachmentsService {
       },
       select: {
         id: true,
+        filename: true,
         userId: true,
         url: true,
       },
@@ -151,12 +237,38 @@ export class AttachmentsService {
 
     const canDelete =
       attachment.userId === userId ||
-      membership.role === ProjectRole.OWNER ||
-      membership.role === ProjectRole.ADMIN;
+      membership.role === 'OWNER' ||
+      membership.role === 'ADMIN';
 
     if (!canDelete) {
       throw new ForbiddenException('You can only delete your own attachments');
     }
+
+    const activity = await this.prisma.activity.create({
+      data: {
+        taskId,
+        projectId: membership.projectId,
+        userId,
+        type: ActivityType.ATTACHMENT_DELETED,
+        message: `Attachment "${attachment.filename}" deleted`,
+        metadata: {
+          attachmentId: attachment.id,
+        },
+      },
+      select: {
+        id: true,
+        type: true,
+        message: true,
+        metadata: true,
+        createdAt: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+      },
+    });
 
     await this.prisma.attachment.delete({
       where: {
@@ -173,7 +285,16 @@ export class AttachmentsService {
       },
     );
 
-    const filename = attachment.url.split('/').pop();
+    this.realtimeService.emitToProject(
+      membership.projectId,
+      'activity.created',
+      {
+        ...activity,
+        taskId,
+      },
+    );
+
+    const filename = basename(attachment.url);
 
     if (filename) {
       const filePath = join(process.cwd(), 'uploads', filename);

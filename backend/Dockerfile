@@ -1,4 +1,4 @@
-﻿FROM node:24-bookworm-slim AS base
+FROM node:24-bookworm-slim AS base
 
 WORKDIR /app
 
@@ -31,7 +31,10 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY package*.json ./
 
-RUN mkdir -p uploads
+RUN mkdir -p uploads \
+  && chown node:node uploads
+
+USER node
 
 EXPOSE 3001
 

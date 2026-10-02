@@ -5,8 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { Prisma, ProjectRole } from '@prisma/client';
+import { NotificationType, Prisma, ProjectRole } from '@prisma/client';
 
+import { NotificationsService } from '../notifications/notifications.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddProjectMemberDto } from './dto/add-project-member.dto';
@@ -19,6 +20,7 @@ export class ProjectsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtimeService: RealtimeService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(userId: number, dto: CreateProjectDto) {
@@ -265,6 +267,129 @@ export class ProjectsService {
     };
   }
 
+  async getDashboardStats(userId: number) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        members: {
+          some: {
+            userId,
+          },
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const projectIds = projects.map((project) => project.id);
+
+    if (projectIds.length === 0) {
+      return {
+        totalProjects: 0,
+        totalTasks: 0,
+        overdueTasks: 0,
+        byPriority: [],
+        byIssueType: [],
+        byColumn: [],
+      };
+    }
+
+    const [totalTasks, byPriority, byIssueType, tasksForColumns, overdueTasks] =
+      await Promise.all([
+        this.prisma.task.count({
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+          },
+        }),
+
+        this.prisma.task.groupBy({
+          by: ['priority'],
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+          },
+          _count: {
+            _all: true,
+          },
+        }),
+
+        this.prisma.task.groupBy({
+          by: ['issueType'],
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+          },
+          _count: {
+            _all: true,
+          },
+        }),
+
+        this.prisma.task.findMany({
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+          },
+          select: {
+            column: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        }),
+
+        this.prisma.task.count({
+          where: {
+            projectId: {
+              in: projectIds,
+            },
+            dueDate: {
+              lt: new Date(),
+            },
+            column: {
+              name: {
+                not: 'Done',
+              },
+            },
+          },
+        }),
+      ]);
+
+    const columnStats = new Map<string, number>();
+
+    for (const task of tasksForColumns) {
+      const columnName = task.column?.name ?? 'No status';
+
+      columnStats.set(columnName, (columnStats.get(columnName) ?? 0) + 1);
+    }
+
+    return {
+      totalProjects: projectIds.length,
+      totalTasks,
+      overdueTasks,
+      byPriority: byPriority.map((item) => ({
+        priority: item.priority,
+        count: item._count._all,
+      })),
+      byIssueType: byIssueType.map((item) => ({
+        issueType: item.issueType,
+        count: item._count._all,
+      })),
+      byColumn: Array.from(columnStats.entries())
+        .map(([columnName, count]) => ({
+          columnId: null,
+          columnName,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count),
+    };
+  }
+
   async getStats(userId: number, projectId: number) {
     await this.getProjectMember(userId, projectId);
 
@@ -499,6 +624,13 @@ export class ProjectsService {
 
       this.realtimeService.emitToProject(projectId, 'member.added', member);
 
+      await this.notificationsService.create({
+        userId: member.user.id,
+        type: NotificationType.PROJECT_MEMBER_ADDED,
+        message: 'You were added to a project',
+        projectId,
+      });
+
       return member;
     } catch (error) {
       if (
@@ -580,6 +712,15 @@ export class ProjectsService {
       },
     });
 
+    if (member.role !== dto.role) {
+      await this.notificationsService.create({
+        userId: member.userId,
+        type: NotificationType.PROJECT_ROLE_UPDATED,
+        message: `Your project role was changed from ${member.role} to ${dto.role}`,
+        projectId,
+      });
+    }
+
     this.realtimeService.emitToProject(
       projectId,
       'member.role.updated',
@@ -620,10 +761,24 @@ export class ProjectsService {
       throw new ForbiddenException('Only project owner can remove admins');
     }
 
-    await this.prisma.projectMember.delete({
-      where: {
-        id: memberId,
-      },
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.projectMember.delete({
+        where: {
+          id: memberId,
+        },
+      });
+
+      const notification =
+        await this.notificationsService.createWithTransaction(tx, {
+          userId: member.userId,
+          type: NotificationType.PROJECT_ACCESS_REVOKED,
+          message: 'Your access to the project has been revoked',
+          projectId,
+        });
+
+      return {
+        notification,
+      };
     });
 
     this.realtimeService.emitToProject(projectId, 'member.removed', {
@@ -633,6 +788,12 @@ export class ProjectsService {
     this.realtimeService.emitToUser(member.userId, 'project.access.revoked', {
       projectId,
     });
+
+    this.realtimeService.emitToUser(
+      result.notification.userId,
+      'notification.created',
+      result.notification,
+    );
 
     return {
       message: 'Project member removed successfully',

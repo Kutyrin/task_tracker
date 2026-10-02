@@ -20,6 +20,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { ProjectsService } from './projects.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;
@@ -43,6 +44,7 @@ describe('ProjectsService', () => {
     task: {
       count: jest.Mock;
       groupBy: jest.Mock;
+      findMany: jest.Mock;
     };
     boardColumn: {
       findMany: jest.Mock;
@@ -56,6 +58,11 @@ describe('ProjectsService', () => {
   let realtimeServiceMock: {
     emitToUser: jest.Mock;
     emitToProject: jest.Mock;
+  };
+
+  let notificationsServiceMock: {
+    create: jest.Mock;
+    createWithTransaction: jest.Mock;
   };
 
   beforeEach(() => {
@@ -81,6 +88,7 @@ describe('ProjectsService', () => {
       task: {
         count: jest.fn(),
         groupBy: jest.fn(),
+        findMany: jest.fn(),
       },
 
       boardColumn: {
@@ -98,9 +106,15 @@ describe('ProjectsService', () => {
       emitToProject: jest.fn(),
     };
 
+    notificationsServiceMock = {
+      create: jest.fn(),
+      createWithTransaction: jest.fn(),
+    };
+
     service = new ProjectsService(
       prismaMock as unknown as PrismaService,
       realtimeServiceMock as unknown as RealtimeService,
+      notificationsServiceMock as unknown as NotificationsService,
     );
   });
 
@@ -647,6 +661,201 @@ describe('ProjectsService', () => {
     });
   });
 
+  describe('getDashboardStats', () => {
+    it('should return aggregated stats for all user projects', async () => {
+      prismaMock.project.findMany.mockResolvedValue([
+        {
+          id: 1,
+        },
+        {
+          id: 2,
+        },
+      ]);
+
+      prismaMock.task.count.mockResolvedValueOnce(5).mockResolvedValueOnce(1);
+
+      prismaMock.task.groupBy
+        .mockResolvedValueOnce([
+          {
+            priority: 'HIGH',
+            _count: {
+              _all: 2,
+            },
+          },
+          {
+            priority: 'LOW',
+            _count: {
+              _all: 3,
+            },
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            issueType: 'TASK',
+            _count: {
+              _all: 4,
+            },
+          },
+          {
+            issueType: 'BUG',
+            _count: {
+              _all: 1,
+            },
+          },
+        ]);
+
+      prismaMock.task.findMany.mockResolvedValue([
+        {
+          column: {
+            name: 'Todo',
+          },
+        },
+        {
+          column: {
+            name: 'Todo',
+          },
+        },
+        {
+          column: {
+            name: 'Done',
+          },
+        },
+        {
+          column: {
+            name: 'Todo',
+          },
+        },
+        {
+          column: null,
+        },
+      ]);
+
+      const result = await service.getDashboardStats(1);
+
+      expect(prismaMock.project.findMany).toHaveBeenCalledWith({
+        where: {
+          members: {
+            some: {
+              userId: 1,
+            },
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      expect(prismaMock.task.count).toHaveBeenNthCalledWith(1, {
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+        },
+      });
+
+      expect(prismaMock.task.groupBy).toHaveBeenNthCalledWith(1, {
+        by: ['priority'],
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+        },
+        _count: {
+          _all: true,
+        },
+      });
+
+      expect(prismaMock.task.groupBy).toHaveBeenNthCalledWith(2, {
+        by: ['issueType'],
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+        },
+        _count: {
+          _all: true,
+        },
+      });
+
+      expect(prismaMock.task.findMany).toHaveBeenCalledWith({
+        where: {
+          projectId: {
+            in: [1, 2],
+          },
+        },
+        select: {
+          column: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+
+      expect(result).toEqual({
+        totalProjects: 2,
+        totalTasks: 5,
+        overdueTasks: 1,
+        byPriority: [
+          {
+            priority: 'HIGH',
+            count: 2,
+          },
+          {
+            priority: 'LOW',
+            count: 3,
+          },
+        ],
+        byIssueType: [
+          {
+            issueType: 'TASK',
+            count: 4,
+          },
+          {
+            issueType: 'BUG',
+            count: 1,
+          },
+        ],
+        byColumn: [
+          {
+            columnId: null,
+            columnName: 'Todo',
+            count: 3,
+          },
+          {
+            columnId: null,
+            columnName: 'Done',
+            count: 1,
+          },
+          {
+            columnId: null,
+            columnName: 'No status',
+            count: 1,
+          },
+        ],
+      });
+    });
+
+    it('should return empty stats when user has no projects', async () => {
+      prismaMock.project.findMany.mockResolvedValue([]);
+
+      const result = await service.getDashboardStats(999);
+
+      expect(result).toEqual({
+        totalProjects: 0,
+        totalTasks: 0,
+        overdueTasks: 0,
+        byPriority: [],
+        byIssueType: [],
+        byColumn: [],
+      });
+
+      expect(prismaMock.task.count).not.toHaveBeenCalled();
+      expect(prismaMock.task.groupBy).not.toHaveBeenCalled();
+      expect(prismaMock.task.findMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getStats', () => {
     it('should return project statistics with resolved column and assignee names', async () => {
       prismaMock.projectMember.findFirst.mockResolvedValue({
@@ -1079,6 +1288,15 @@ describe('ProjectsService', () => {
 
       prismaMock.projectMember.create.mockResolvedValue(member);
 
+      notificationsServiceMock.create.mockResolvedValue({
+        id: 1,
+        type: 'PROJECT_MEMBER_ADDED',
+        message: 'You were added to a project',
+        userId: 2,
+        taskId: null,
+        projectId: 1,
+      });
+
       const result = await service.addMember(1, 1, {
         userId: 2,
         role: 'MEMBER',
@@ -1114,6 +1332,13 @@ describe('ProjectsService', () => {
         'member.added',
         member,
       );
+
+      expect(notificationsServiceMock.create).toHaveBeenCalledWith({
+        userId: 2,
+        type: 'PROJECT_MEMBER_ADDED',
+        message: 'You were added to a project',
+        projectId: 1,
+      });
 
       expect(result).toEqual(member);
     });
@@ -1406,6 +1631,15 @@ describe('ProjectsService', () => {
 
       prismaMock.projectMember.update.mockResolvedValue(updatedMember);
 
+      notificationsServiceMock.create.mockResolvedValue({
+        id: 1,
+        type: 'PROJECT_ROLE_UPDATED',
+        message: 'Your project role was changed from MEMBER to ADMIN',
+        userId: 2,
+        taskId: null,
+        projectId: 1,
+      });
+
       const result = await service.updateMemberRole(1, 1, 2, {
         role: 'ADMIN',
       });
@@ -1435,6 +1669,13 @@ describe('ProjectsService', () => {
         'member.role.updated',
         updatedMember,
       );
+
+      expect(notificationsServiceMock.create).toHaveBeenCalledWith({
+        userId: 2,
+        type: 'PROJECT_ROLE_UPDATED',
+        message: 'Your project role was changed from MEMBER to ADMIN',
+        projectId: 1,
+      });
 
       expect(result).toEqual(updatedMember);
     });
@@ -1468,6 +1709,13 @@ describe('ProjectsService', () => {
 
       const result = await service.updateMemberRole(1, 1, 2, {
         role: 'MEMBER',
+      });
+
+      expect(notificationsServiceMock.create).toHaveBeenCalledWith({
+        userId: 1,
+        type: 'PROJECT_ROLE_UPDATED',
+        message: 'Your project role was changed from ADMIN to MEMBER',
+        projectId: 1,
       });
 
       expect(result).toEqual(updatedMember);
@@ -1614,13 +1862,54 @@ describe('ProjectsService', () => {
           role: 'MEMBER',
         });
 
+      const tx = {
+        projectMember: {
+          delete: jest.fn().mockResolvedValue({
+            id: 2,
+          }),
+        },
+      };
+
+      prismaMock.$transaction.mockImplementation(async (callback) =>
+        callback(tx),
+      );
+
+      notificationsServiceMock.createWithTransaction.mockResolvedValue({
+        id: 3,
+        type: 'PROJECT_ACCESS_REVOKED',
+        message: 'Your access to the project has been revoked',
+        userId: 2,
+        taskId: null,
+        projectId: 1,
+      });
+
       const result = await service.removeMember(1, 1, 2);
 
-      expect(prismaMock.projectMember.delete).toHaveBeenCalledWith({
+      expect(tx.projectMember.delete).toHaveBeenCalledWith({
         where: {
           id: 2,
         },
       });
+
+      expect(
+        notificationsServiceMock.createWithTransaction,
+      ).toHaveBeenCalledWith(expect.anything(), {
+        userId: 2,
+        type: 'PROJECT_ACCESS_REVOKED',
+        message: 'Your access to the project has been revoked',
+        projectId: 1,
+      });
+
+      expect(realtimeServiceMock.emitToUser).toHaveBeenCalledWith(
+        2,
+        'notification.created',
+        expect.objectContaining({
+          id: 3,
+          type: 'PROJECT_ACCESS_REVOKED',
+          userId: 2,
+          projectId: 1,
+        }),
+      );
 
       expect(realtimeServiceMock.emitToProject).toHaveBeenCalledWith(
         1,

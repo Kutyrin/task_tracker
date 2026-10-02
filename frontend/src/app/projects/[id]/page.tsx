@@ -1,18 +1,25 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useProject } from '@/hooks/projects/use-project';
+import { useDeleteProject } from '@/hooks/projects/use-delete-project';
+import { ProjectLabels } from '@/components/projects/project-labels';
+import { useProjectRealtime } from '@/hooks/realtime/use-project-realtime';
 import { ProjectMembers } from '@/components/projects/project-members';
 import { useProjectMembers } from '@/hooks/projects/use-project-members';
 import { AddProjectMemberForm } from '@/components/projects/add-project-member-form';
 import { ProjectBoards } from '@/components/projects/project-boards';
 import { useProjectBoards } from '@/hooks/projects/use-project-boards';
 import { CreateBoardForm } from '@/components/projects/create-board-form';
+import { ProjectActivitySection } from '@/components/projects/project-activity-section';
 
 function ProjectContent({ projectId }: { projectId: number }) {
+  const router = useRouter();
+  const deleteProjectMutation = useDeleteProject();
+
   const { data: project, isPending, isError } = useProject(projectId);
   const {
     data: members,
@@ -24,6 +31,8 @@ function ProjectContent({ projectId }: { projectId: number }) {
     isPending: isBoardsPending,
     isError: isBoardsError,
   } = useProjectBoards(projectId);
+
+  useProjectRealtime(projectId);
 
   if (isPending) {
     return (
@@ -60,6 +69,23 @@ function ProjectContent({ projectId }: { projectId: number }) {
     );
   }
 
+  const handleDeleteProject = async () => {
+    const confirmed = window.confirm(
+      `Delete project "${project.name}"? This action cannot be undone.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteProjectMutation.mutateAsync(projectId);
+      router.replace('/projects');
+    } catch {
+      return;
+    }
+  };
+
   return (
     <main className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-4xl">
@@ -85,9 +111,24 @@ function ProjectContent({ projectId }: { projectId: number }) {
               </p>
             </div>
 
-            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
-              {project.role}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
+                {project.role}
+              </span>
+
+              {project.role === 'OWNER' && (
+                <button
+                  type="button"
+                  onClick={handleDeleteProject}
+                  disabled={deleteProjectMutation.isPending}
+                  className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {deleteProjectMutation.isPending
+                    ? 'Deleting...'
+                    : 'Delete project'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
         <div className="mt-8 grid gap-5 sm:grid-cols-2">
@@ -185,6 +226,10 @@ function ProjectContent({ projectId }: { projectId: number }) {
             )}
           </div>
         </div>
+        {/* Labels */}
+        {(project.role === 'OWNER' || project.role === 'ADMIN') && (
+          <ProjectLabels projectId={projectId} />
+        )}
         {/* Boards */}
         <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-4">
@@ -227,6 +272,10 @@ function ProjectContent({ projectId }: { projectId: number }) {
               <CreateBoardForm projectId={projectId} />
             )}
           </div>
+        </div>
+        {/* Project activity */}
+        <div>
+          <ProjectActivitySection projectId={projectId} />
         </div>
       </div>
     </main>

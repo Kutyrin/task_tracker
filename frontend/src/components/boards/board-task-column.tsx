@@ -17,6 +17,9 @@ import type { Task } from '@/lib/tasks';
 
 interface BoardTaskColumnProps {
   column: BoardDetailsColumn;
+  disableTaskDrag?: boolean;
+  hasActiveFilters?: boolean;
+  sortTasksByPosition?: boolean;
 }
 
 function getTaskId(id: string | number | undefined) {
@@ -47,7 +50,12 @@ function TaskDropPlaceholder({ task }: { task: Task }) {
   );
 }
 
-export function BoardTaskColumn({ column }: BoardTaskColumnProps) {
+export function BoardTaskColumn({
+  column,
+  disableTaskDrag = false,
+  hasActiveFilters = false,
+  sortTasksByPosition = true,
+}: BoardTaskColumnProps) {
   const { active, over } = useDndContext();
 
   const {
@@ -74,9 +82,9 @@ export function BoardTaskColumn({ column }: BoardTaskColumnProps) {
     },
   });
 
-  const sortedTasks = column.tasks
-    .slice()
-    .sort((a, b) => a.position - b.position);
+  const sortedTasks = sortTasksByPosition
+    ? column.tasks.slice().sort((a, b) => a.position - b.position)
+    : column.tasks;
 
   const activeType = active?.data.current?.type;
 
@@ -157,7 +165,9 @@ export function BoardTaskColumn({ column }: BoardTaskColumnProps) {
               <TaskDropPlaceholder task={activeTask} />
             ) : (
               <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
-                <p className="text-sm text-slate-500">No issues yet</p>
+                <p className="text-sm text-slate-500">
+                  {hasActiveFilters ? 'No matching issues' : 'No issues yet'}
+                </p>
               </div>
             )
           ) : (
@@ -174,7 +184,7 @@ export function BoardTaskColumn({ column }: BoardTaskColumnProps) {
                     <TaskDropPlaceholder task={activeTask} />
                   )}
 
-                  <BoardTaskCard task={task} />
+                  <BoardTaskCard task={task} disableDrag={disableTaskDrag} />
 
                   {showPlaceholderAfter && (
                     <TaskDropPlaceholder task={activeTask} />

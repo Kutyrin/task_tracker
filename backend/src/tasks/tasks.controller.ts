@@ -18,6 +18,7 @@ import { TasksService } from './tasks.service';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TaskQueryDto } from './dto/task-query.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
+import { CalendarQueryDto } from './dto/calendar-query.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -39,6 +40,14 @@ export class TasksController {
   @Get()
   findAll(@Req() req: AuthenticatedRequest, @Query() query: TaskQueryDto) {
     return this.tasksService.findAll(req.user.userId, query);
+  }
+
+  @Get('calendar')
+  findCalendar(
+    @Req() req: AuthenticatedRequest,
+    @Query() query: CalendarQueryDto,
+  ) {
+    return this.tasksService.findCalendar(req.user.userId, query);
   }
 
   @Get(':id')

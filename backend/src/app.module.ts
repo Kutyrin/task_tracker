@@ -15,6 +15,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { TasksModule } from './tasks/tasks.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { TasksModule } from './tasks/tasks.module';
     ActivitiesModule,
     AttachmentsModule,
     RealtimeModule,
+    NotificationsModule,
   ],
   controllers: [AppController, HealthController],
 })
