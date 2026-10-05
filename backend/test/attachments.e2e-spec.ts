@@ -11,6 +11,7 @@ describe('Attachments e2e', () => {
   let accessToken: string;
   let taskId: number;
   let attachmentId: number;
+  let attachmentUrl: string;
 
   const email = `attachments-e2e-${Date.now()}@example.com`;
   const password = 'Password123!';
@@ -149,6 +150,7 @@ describe('Attachments e2e', () => {
       .expect(201);
 
     attachmentId = response.body.id;
+    attachmentUrl = response.body.url;
 
     expect(response.body).toEqual(
       expect.objectContaining({
@@ -182,6 +184,28 @@ describe('Attachments e2e', () => {
           }),
         }),
       ]),
+    );
+  });
+
+  it('should reject public access to the uploaded file', async () => {
+    await request(app!.getHttpServer()).get(attachmentUrl).expect(404);
+  });
+
+  it('should reject attachment download without authentication', async () => {
+    await request(app!.getHttpServer())
+      .get(`/tasks/${taskId}/attachments/${attachmentId}/download`)
+      .expect(401);
+  });
+
+  it('should download an attachment for an authorized user', async () => {
+    const response = await request(app!.getHttpServer())
+      .get(`/tasks/${taskId}/attachments/${attachmentId}/download`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(response.headers['content-type']).toContain('text/plain');
+    expect(response.headers['content-disposition']).toContain(
+      'e2e-attachment.txt',
     );
   });
 

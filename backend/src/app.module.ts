@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'node:path';
 
 import { ActivitiesModule } from './activities/activities.module';
 import { AppController } from './app.controller';
@@ -40,11 +38,6 @@ import { NotificationsModule } from './notifications/notifications.module';
 
         return config;
       },
-    }),
-
-    ServeStaticModule.forRoot({
-      rootPath: join(process.cwd(), 'uploads'),
-      serveRoot: '/uploads',
     }),
 
     PrismaModule,

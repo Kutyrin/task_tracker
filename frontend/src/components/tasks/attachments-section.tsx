@@ -20,8 +20,6 @@ const ALLOWED_MIME_TYPES = new Set([
   'text/plain',
 ]);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-
 function formatFileSize(size: number) {
   if (size < 1024) {
     return `${size} B`;
@@ -176,14 +174,11 @@ export function AttachmentsSection({
 
           const canDelete = isAuthor || canDeleteOthers;
 
-          const href = `${API_URL}${attachment.url}`;
-
           return (
             <AttachmentItem
               key={attachment.id}
               taskId={taskId}
               attachment={attachment}
-              href={href}
               canDelete={canDelete}
             />
           );
@@ -211,7 +206,6 @@ function AttachmentItem({
       email: string;
     };
   };
-  href: string;
   canDelete: boolean;
 }) {
   const deleteMutation = useDeleteAttachment(taskId, attachment.id);
