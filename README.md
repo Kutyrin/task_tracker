@@ -2,7 +2,7 @@
 
 A full-stack issue and project management platform inspired by Jira and Kaiten. The project combines a NestJS REST API, a Next.js frontend, PostgreSQL persistence, role-based access control, real-time collaboration, Kanban workflows, notifications, file attachments, and calendar-based task tracking.
 
-The application is designed as a complete full-stack system rather than a simple CRUD demo. It includes authentication with access and refresh token rotation, project-level RBAC, transactional issue numbering, real-time synchronization through Socket.IO, automated testing, Docker-based local development, and a production CI/CD pipeline with Docker images published to GHCR and deployed to a VPS.
+The application is designed as a complete full-stack system rather than a simple CRUD demo. It includes JWT authentication with access and refresh token rotation, project-level RBAC, transactional issue numbering, real-time synchronization through Socket.IO, automated unit and E2E testing, Docker-based local development, and a production CI/CD pipeline that builds Docker images, publishes them to GitHub Container Registry, and deploys them to a VPS.
 
 ## Demo
 
@@ -26,7 +26,7 @@ Production:
 - **Comments:** creation, listing, editing own comments, and deletion by the author or a project owner/admin.
 - **Labels:** project-scoped unique names, label management, and issue-label assignments.
 - **Activity history:** task creation and movement, field changes, comments, label assignments, and project-level activity.
-- **Attachments:** upload, list, download, and delete files attached to tasks. Uploads use the multipart field `file`, with a 5 MiB limit and JPEG, PNG, GIF, WebP, PDF, and plain-text MIME types.
+- **Attachments:** upload, list, download, and delete files attached to tasks. Uploads use the multipart field `file`, with a 5 MiB limit and JPEG, PNG, GIF, WebP, PDF, and plain-text MIME types. Attachment downloads are served through an authenticated API endpoint with project access checks.
 - **Statistics:** dashboard totals across accessible projects and per-project statistics, including total and overdue tasks, with counts by priority, issue type, column, and assignee.
 - **Real-time updates:** Socket.IO events for projects, members, boards, columns, tasks, comments, labels, attachments, activity, and notifications.
 - **Calendar:** tasks with due dates in a requested date range across accessible projects.
@@ -218,6 +218,7 @@ Production services run on a VPS.
 - PostgreSQL runs as a separate container with persistent storage.
 - Uploaded files are stored in persistent Docker storage.
 - Production images are pulled from GitHub Container Registry.
+- PostgreSQL backups are created automatically once per day and retained locally for seven days.
 
 Production configuration is stored in `.env.production` on the VPS and is not committed to the repository.
 
@@ -382,6 +383,7 @@ The deployment workflow:
 5. Restarts the production stack with Docker Compose.
 6. Runs application health checks.
 7. Leaves the PostgreSQL and upload data in persistent Docker storage.
+8. Runs an automated daily PostgreSQL backup with seven-day retention.
 
 Production services:
 
@@ -405,6 +407,150 @@ JWT_REFRESH_SECRET
 ```
 
 Secrets are never committed to the repository.
+
+## Production Backup and Restoration
+
+Production PostgreSQL data is backed up automatically on the VPS.
+
+### Backup Strategy
+
+- Backups run once per day at 03:00 server time.
+- Backups are created with `pg_dump` from the production PostgreSQL container.
+- Dumps are compressed with gzip.
+- Backups are stored in `/opt/task-tracker/backups/`.
+- Backups older than seven days are removed automatically.
+- The backup service is managed by a systemd timer.
+- Production database data is stored in the persistent `postgres_data` Docker volume.
+- The backup directory and backup script are restricted to the root user.
+
+Backup files use the following naming convention:
+
+```text
+postgres_YYYY-MM-DD_HH-MM-SS.sql.gz
+```
+
+### Backup Service
+
+The backup consists of two systemd units:
+
+```text
+/etc/systemd/system/task-tracker-backup.service
+/etc/systemd/system/task-tracker-backup.timer
+```
+
+Check the timer:
+
+```bash
+sudo systemctl status task-tracker-backup.timer --no-pager
+```
+
+List the scheduled execution:
+
+```bash
+systemctl list-timers task-tracker-backup.timer --no-pager
+```
+
+Run a backup manually:
+
+```bash
+sudo systemctl start task-tracker-backup.service
+```
+
+Check the result:
+
+```bash
+sudo systemctl status task-tracker-backup.service --no-pager
+```
+
+List available backups:
+
+```bash
+sudo ls -lh /opt/task-tracker/backups/
+```
+
+### Backup Validation
+
+Each backup is compressed and validated with gzip after creation.
+
+A backup archive can be checked manually:
+
+```bash
+sudo gzip -t /opt/task-tracker/backups/postgres_<timestamp>.sql.gz
+```
+
+### Restoration Test
+
+Production backups should be tested by restoring them into a temporary PostgreSQL database without modifying the live production database.
+
+The verified restoration procedure is:
+
+```bash
+cd /opt/task-tracker
+
+POSTGRES_CONTAINER=$(sudo docker compose \
+  --env-file .env.production \
+  -f docker-compose.prod.yml \
+  ps -q postgres)
+
+BACKUP="/opt/task-tracker/backups/postgres_<timestamp>.sql.gz"
+
+sudo docker exec "$POSTGRES_CONTAINER" \
+  sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE restore_test_manual;"'
+
+gzip -dc "$BACKUP" | sudo docker exec -i \
+  "$POSTGRES_CONTAINER" \
+  sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d restore_test_manual'
+```
+
+Verify that the restored database contains the expected schema:
+
+```bash
+sudo docker exec "$POSTGRES_CONTAINER" \
+  sh -c 'psql -U "$POSTGRES_USER" -d restore_test_manual -tAc "SELECT count(*) FROM information_schema.tables WHERE table_schema = '\''public'\'';"'
+```
+
+After verification, remove the temporary database:
+
+```bash
+sudo docker exec "$POSTGRES_CONTAINER" \
+  sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres -c "DROP DATABASE restore_test_manual;"'
+```
+
+A successful restoration test confirms that the backup is readable and can be restored by PostgreSQL without affecting the live production database.
+
+The current production backup has been successfully tested using this procedure, with the restored database containing 13 public tables.
+
+### Full Production Restore
+
+A full production restore is destructive and should only be performed after stopping the application and confirming the correct backup file.
+
+The general recovery process is:
+
+```text
+Select backup
+     │
+     ▼
+Stop application containers
+     │
+     ▼
+Create a fresh PostgreSQL database
+     │
+     ▼
+Restore the selected .sql.gz dump
+     │
+     ▼
+Run Prisma migrations if required
+     │
+     ▼
+Start backend and frontend
+     │
+     ▼
+Run health checks
+```
+
+Before performing a destructive production restore, create an additional backup of the current production database and verify the selected backup archive with `gzip -t`.
+
+For the demonstration environment, backups are intentionally kept on the VPS for seven days. An external backup destination is not currently configured.
 
 ## API Overview
 
@@ -537,7 +683,7 @@ Current backend test suite:
 
 ```text
 278 unit tests
-71 API E2E tests
+74 API E2E tests
 ```
 
 Unit tests cover business services, task mapping, authentication, JWT strategy, real-time services, gateway behavior, and guards.
@@ -584,10 +730,10 @@ http://localhost:3001
 | Area                    |   Tests |
 | ----------------------- | ------: |
 | Backend unit            |     278 |
-| Backend API E2E         |      71 |
+| Backend API E2E         |      74 |
 | Frontend Vitest         |     170 |
 | Frontend Playwright E2E |       3 |
-| **Total**               | **522** |
+| **Total**               | **525** |
 
 ## CI/CD
 
@@ -680,18 +826,17 @@ Docker Buildx with GitHub Actions cache is used when publishing production image
 - Passwords and refresh tokens are stored as hashes.
 - API user projections exclude passwords.
 - The frontend stores access and refresh tokens in local storage and sends access tokens as bearer tokens.
-- Attachment downloads through the API check project membership and preserve the original filename.
-- Static `/uploads` serving remains enabled without a JWT guard.
+- Attachment downloads go through authenticated API endpoints and verify project access.
+- Uploaded files are stored in persistent Docker storage but are not exposed through a public static `/uploads` route.
 - HTTP CORS is configurable.
 - The Socket.IO gateway declares its own origin policy separately from HTTP CORS.
 - Production traffic is terminated through Nginx with Let's Encrypt TLS certificates.
 - Backend and frontend containers are not exposed directly to the public network; external access is provided through Nginx.
 - Production secrets are stored outside the repository in `.env.production`.
+- PostgreSQL backups are generated daily and retained locally for seven days.
 
 ## Remaining Work
 
 - Broader Playwright E2E coverage for projects, comments, labels, notifications, attachments, and RBAC edge cases.
 - Optional frontend coverage reporting with a dedicated Vitest coverage provider.
-- Production backup strategy for PostgreSQL and uploaded files.
 - Basic production monitoring and centralized log collection.
-- Review whether direct static `/uploads` access should be replaced with authenticated attachment delivery.
