@@ -127,6 +127,15 @@ export default function LoginPage() {
             Create one
           </Link>
         </p>
+
+        <p className="mt-4 text-center text-sm text-slate-600">
+          <Link
+            href="/forgot-password"
+            className="font-medium text-slate-950 underline underline-offset-4"
+          >
+            Forgot password?
+          </Link>
+        </p>
       </section>
     </main>
   );

@@ -1,20 +1,27 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { createHash, randomBytes } from 'node:crypto';
 import * as bcrypt from 'bcrypt';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { MailService } from './mail.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -48,6 +55,113 @@ export class AuthService {
     const user = await this.validateUser(dto.email, dto.password);
 
     return this.generateTokens(user.id, user.email);
+  }
+
+  async requestPasswordReset(email: string) {
+    const genericResponse = {
+      message:
+        'If an account with that email exists, password reset instructions have been sent.',
+    };
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: {
+          equals: email.trim(),
+          mode: 'insensitive',
+        },
+      },
+    });
+
+    if (!user) {
+      return genericResponse;
+    }
+
+    const now = new Date();
+    const cooldownMs = 60_000;
+
+    if (
+      user.passwordResetRequestedAt &&
+      now.getTime() - user.passwordResetRequestedAt.getTime() < cooldownMs
+    ) {
+      return genericResponse;
+    }
+
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
+    const cooldownCutoff = new Date(now.getTime() - cooldownMs);
+
+    // Atomic cooldown check prevents concurrent requests from issuing
+    // multiple valid reset links for the same account.
+    const claimed = await this.prisma.user.updateMany({
+      where: {
+        id: user.id,
+        OR: [
+          { passwordResetRequestedAt: null },
+          { passwordResetRequestedAt: { lte: cooldownCutoff } },
+        ],
+      },
+      data: {
+        passwordResetTokenHash: tokenHash,
+        passwordResetExpiresAt: expiresAt,
+        passwordResetRequestedAt: now,
+      },
+    });
+
+    if (claimed.count === 0) {
+      return genericResponse;
+    }
+
+    try {
+      await this.mailService.sendPasswordResetEmail(user.email, token);
+    } catch (error) {
+      // Remove the token if delivery failed. Keep the timestamp so a
+      // failed delivery cannot be used to spam repeated SMTP attempts.
+      await this.prisma.user.updateMany({
+        where: {
+          id: user.id,
+          passwordResetTokenHash: tokenHash,
+        },
+        data: {
+          passwordResetTokenHash: null,
+          passwordResetExpiresAt: null,
+        },
+      });
+
+      const reason = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Password reset email delivery failed: ${reason}`);
+    }
+
+    return genericResponse;
+  }
+
+  async resetPassword(token: string, password: string) {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const passwordHash = await bcrypt.hash(password, 10);
+    const now = new Date();
+
+    const result = await this.prisma.user.updateMany({
+      where: {
+        passwordResetTokenHash: tokenHash,
+        passwordResetExpiresAt: {
+          gt: now,
+        },
+      },
+      data: {
+        password: passwordHash,
+        refreshTokenHash: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+      },
+    });
+
+    if (result.count !== 1) {
+      throw new BadRequestException('Invalid or expired password reset token');
+    }
+
+    return {
+      message: 'Password has been reset successfully',
+    };
   }
 
   async logout(userId: number) {

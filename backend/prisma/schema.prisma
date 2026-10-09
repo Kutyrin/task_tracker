@@ -14,11 +14,14 @@ datasource db {
 }
 
 model User {
-  id               Int      @id @default(autoincrement())
-  email            String   @unique
-  password         String
-  refreshTokenHash String?
-  createdAt        DateTime @default(now())
+  id                       Int      @id @default(autoincrement())
+  email                    String   @unique
+  password                 String
+  refreshTokenHash         String?
+  passwordResetTokenHash   String?
+  passwordResetExpiresAt   DateTime?
+  passwordResetRequestedAt DateTime?
+  createdAt                DateTime @default(now())
 
   tasks              Task[]
   ownedProjects      Project[]       @relation("ProjectOwner")
