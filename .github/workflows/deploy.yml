@@ -19,7 +19,10 @@ concurrency:
 jobs:
   deploy:
     name: Deploy to production
-    if: github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     environment: production
 
@@ -30,6 +33,12 @@ jobs:
       IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
 
     steps:
+      - name: Checkout tested release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
       - name: Configure SSH
         env:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
@@ -44,20 +53,43 @@ jobs:
           printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
+      - name: Upload production Compose from tested release
+        run: |
+          set -euo pipefail
+          test -n "$VPS_APP_DIR"
+          [[ "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]]
+          printf -v remote_file '%q' "$VPS_APP_DIR/.docker-compose.prod.$IMAGE_TAG.yml"
+          ssh "$VPS_USER@$VPS_HOST" "cat > $remote_file" < docker-compose.prod.yml
+
       - name: Deploy production
         run: |
-          ssh "$VPS_USER@$VPS_HOST" \
-            "cd '$VPS_APP_DIR' && \
-            IMAGE_TAG='$IMAGE_TAG' \
-            docker compose \
-              --env-file .env.production \
-              -f docker-compose.prod.yml \
-              pull && \
-            IMAGE_TAG='$IMAGE_TAG' \
-            docker compose \
-              --env-file .env.production \
-              -f docker-compose.prod.yml \
-              up -d --remove-orphans"
+          set -euo pipefail
+          printf -v remote_command 'bash -s -- %q %q' "$VPS_APP_DIR" "$IMAGE_TAG"
+          ssh "$VPS_USER@$VPS_HOST" "$remote_command" <<'REMOTE'
+          set -euo pipefail
+          cd -- "$1"
+          export IMAGE_TAG="$2"
+          candidate=".docker-compose.prod.$IMAGE_TAG.yml"
+          trap 'rm -f -- "$candidate"' EXIT
+
+          docker compose --env-file .env.production -f "$candidate" config --quiet
+          docker compose --env-file .env.production -f "$candidate" config --images
+
+          # Download the entire release before replacing the active configuration.
+          for attempt in 1 2 3; do
+            if docker compose --env-file .env.production -f "$candidate" pull; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep "$((attempt * 10))"
+          done
+
+          mv -- "$candidate" docker-compose.prod.yml
+          docker compose --env-file .env.production -f docker-compose.prod.yml \
+            up -d --remove-orphans
+          REMOTE
 
       - name: Wait for application health
         run: |
