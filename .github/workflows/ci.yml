@@ -22,6 +22,7 @@ jobs:
 
     services:
       postgres:
+        # Docker Official Images on ECR Public avoid Docker Hub pull limits.
         image: public.ecr.aws/docker/library/postgres:17
         env:
           POSTGRES_USER: postgres
