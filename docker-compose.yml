@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: public.ecr.aws/docker/library/postgres:17
+    image: postgres:17
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -17,7 +17,7 @@ services:
       retries: 10
 
   uploads-init:
-    image: public.ecr.aws/docker/library/node:24-bookworm-slim
+    image: node:24-bookworm-slim
     restart: 'no'
     command: ['sh', '-c', 'chown -R 1000:1000 /app/uploads']
     volumes:
