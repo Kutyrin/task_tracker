@@ -16,6 +16,10 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export interface PasswordResetResponse {
+  message: string;
+}
+
 export async function register(
   email: string,
   password: string,
@@ -56,4 +60,27 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
 
 export async function logout(): Promise<void> {
   await api.post('/auth/logout');
+}
+
+export async function requestPasswordReset(
+  email: string,
+): Promise<PasswordResetResponse> {
+  const response = await api.post<PasswordResetResponse>(
+    '/auth/forgot-password',
+    { email },
+  );
+
+  return response.data;
+}
+
+export async function resetPassword(
+  token: string,
+  password: string,
+): Promise<PasswordResetResponse> {
+  const response = await api.post<PasswordResetResponse>(
+    '/auth/reset-password',
+    { token, password },
+  );
+
+  return response.data;
 }
