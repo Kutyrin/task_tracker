@@ -176,9 +176,34 @@ jobs:
           CORS_ORIGIN=http://localhost:3000
           EOF
 
+      - name: Pull Compose dependencies with backoff
+        working-directory: .
+        run: |
+          set -euo pipefail
+          # ECR Public throttles anonymous pulls; avoid concurrent service pulls.
+          for service in postgres uploads-init; do
+            for attempt in 1 2 3 4 5; do
+              if docker compose pull --policy missing "$service"; then
+                break
+              fi
+              if [ "$attempt" -eq 5 ]; then
+                echo "::error::Failed to pull $service after $attempt attempts"
+                exit 1
+              fi
+              delay=$((15 * (2 ** (attempt - 1))))
+              echo "Pull failed for $service; retrying in ${delay}s"
+              sleep "$delay"
+            done
+            sleep 2
+          done
+
+      - name: Build E2E images
+        working-directory: .
+        run: docker compose build
+
       - name: Start Docker Compose stack
         working-directory: .
-        run: docker compose up -d --build
+        run: docker compose up -d --no-build --pull never
 
       - name: Wait for application
         working-directory: .

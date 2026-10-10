@@ -90,6 +90,20 @@ jobs:
           docker compose --env-file .env.production -f docker-compose.prod.yml \
             up -d --remove-orphans
           REMOTE
+      
+      - name: Collect production logs after deployment failure
+        if: failure()
+        run: |
+          ssh "$VPS_USER@$VPS_HOST" \
+            "cd '$VPS_APP_DIR' && { \
+              docker compose \
+                --env-file .env.production \
+                -f docker-compose.prod.yml ps -a; \
+              docker compose \
+                --env-file .env.production \
+                -f docker-compose.prod.yml \
+                logs --no-color --tail=200 backend postgres frontend; \
+            }"
 
       - name: Wait for application health
         run: |
