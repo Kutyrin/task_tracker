@@ -56,7 +56,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      # Startup runs Prisma migrations before the HTTP server is available.
+      # Allow slow VPS startup without failing frontend's service_healthy dependency.
+      start_period: 180s
     depends_on:
       postgres:
         condition: service_healthy
