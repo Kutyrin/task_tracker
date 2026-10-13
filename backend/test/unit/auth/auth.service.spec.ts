@@ -6,9 +6,9 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { createHash } from 'node:crypto';
 
-import { PrismaService } from '../prisma/prisma.service';
-import { AuthService } from './auth.service';
-import { MailService } from './mail.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { AuthService } from '../../../src/auth/auth.service';
+import { MailService } from '../../../src/auth/mail.service';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),

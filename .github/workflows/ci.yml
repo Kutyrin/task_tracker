@@ -181,6 +181,9 @@ jobs:
 
     env:
       NEXT_PUBLIC_API_URL: http://localhost:3001
+      COMPOSE_PROFILES: e2e
+      BACKEND_ENV_FILE: ./backend/test/e2e.env
+      COMPOSE_PROJECT_NAME: task-tracker-e2e
 
     steps:
       - name: Checkout
@@ -196,23 +199,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Create backend environment
-        working-directory: .
-        run: |
-          cat > backend/.env <<'EOF'
-          DATABASE_URL=postgresql://postgres:postgres@postgres:5432/task_tracker
-          JWT_SECRET=ci-e2e-test-secret
-          JWT_REFRESH_SECRET=ci-e2e-test-refresh-secret
-          PORT=3001
-          CORS_ORIGIN=http://localhost:3000
-          EOF
-
       - name: Pull Compose dependencies with backoff
         working-directory: .
         run: |
           set -euo pipefail
           # ECR Public throttles anonymous pulls; avoid concurrent service pulls.
-          for service in postgres uploads-init; do
+          for service in postgres uploads-init mailpit; do
             for attempt in 1 2 3 4 5; do
               if docker compose pull --policy missing "$service"; then
                 break

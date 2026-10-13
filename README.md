@@ -117,13 +117,13 @@ Recharts is installed, while current dashboard distributions are rendered with C
 │   │   ├── health.controller.ts
 │   │   └── main.ts
 │   └── test/
-│       └── API E2E tests
+│       ├── unit/          # Jest unit tests│       └── API E2E tests and test environment
 │
 └── frontend/
     ├── Dockerfile
     ├── .dockerignore
     ├── .env.example
-    ├── e2e/
+    ├── test/             # Vitest tests, setup and Playwright e2e/
     ├── playwright.config.ts
     ├── vitest.config.mts
     └── src/
@@ -132,8 +132,7 @@ Recharts is installed, while current dashboard distributions are rendered with C
         ├── hooks/
         ├── lib/
         ├── providers/
-        ├── store/
-        └── tests/
+        └── store/
 ```
 
 The backend uses feature modules, controllers for HTTP routes, services for business rules and access checks, DTOs declaring validation constraints, and Prisma for persistence. The E2E bootstrap installs a global `ValidationPipe`; the current application bootstrap does not.
@@ -609,23 +608,42 @@ npm run build
 
 Vitest and React Testing Library cover utility functions, query and mutation hooks, real-time hooks, components, and pages.
 
-Playwright currently covers registration, authentication, task creation, and task movement flows.
+Playwright covers registration/login, task creation/movement, project creation/deletion, comment editing/deletion, label management/assignment, attachment validation/download/deletion, notification navigation/read state, and member/admin/outsider access boundaries. Password recovery tests use a real SMTP message captured by [Mailpit](https://mailpit.axllent.org/docs/api-v1/), check new credentials, revoked refresh tokens, reused/invalid links, mismatched passwords, and unknown email addresses.
 
-Install Chromium before running browser tests for the first time:
+All backend tests live in `backend/test` (unit tests in `unit/`); all frontend tests live in `frontend/test` (browser tests in `e2e/`). Start a disposable test stack from the repository root using the main Compose file's `e2e` profile. `backend/test/e2e.env` routes mail to Mailpit and supplies test-only JWT secrets; no local `.env` or production credentials are needed. Ports 3000, 3001, 5433 and 8025 must be free:
+
+```bash
+export BACKEND_ENV_FILE=./backend/test/e2e.env
+docker compose -p task-tracker-e2e --profile e2e up -d --build --wait
+```
+
+In PowerShell use `$env:BACKEND_ENV_FILE='./backend/test/e2e.env'` instead of `export`. The ordinary Compose stack does not start Mailpit unless the `e2e` profile is enabled.
+
+Install Chromium and run tests from `frontend`:
 
 ```bash
 npx playwright install chromium
 npm run test:e2e
 ```
 
-Playwright does not start servers automatically. Its tests create data in the running backend; use a test environment. The configured URLs are:
+Playwright does not start servers automatically. Each scenario creates independent test data; retries use fresh users/projects. Use only a disposable backend. Defaults are frontend `http://localhost:3000`, API `http://localhost:3001`, and Mailpit `http://localhost:8025`. Override these with `E2E_BASE_URL`, `E2E_API_URL` and `E2E_MAIL_URL` (also align backend `FRONTEND_URL`, CORS and frontend API build settings).
 
-```text
-http://localhost:3000
-http://localhost:3001
+Password recovery tests require Mailpit and fail if it is unavailable. No real mailbox credentials or new CI secrets are needed. After testing, remove only the disposable stack and its data from the repository root:
+
+```bash
+docker compose -p task-tracker-e2e --profile e2e down -v
 ```
 
-Use `npm run test:watch` for Vitest watch mode and `npm run test:e2e:ui` for Playwright's UI. The `test:coverage` script exists, but a dedicated Vitest coverage provider is not installed. Test totals are reported by each run rather than maintained manually here.
+Use `npm run test:watch` for Vitest watch mode and `npm run test:e2e:ui` for Playwright's UI.
+
+To measure code coverage, run from the repository root:
+
+```bash
+npm --prefix backend run test:cov -- --runInBand
+npm --prefix frontend run test:coverage
+```
+
+Both commands print statements, branches, functions and lines percentages, including source files not exercised by tests. HTML reports are written to `backend/coverage/index.html` and `frontend/coverage/index.html`; JSON summaries and LCOV files are also available in those directories. These percentages measure Jest/Vitest code coverage, not the percentage of user scenarios covered by Playwright. Browser E2E coverage instrumentation is not configured.
 
 ## CI/CD
 
@@ -634,7 +652,7 @@ Use `npm run test:watch` for Vitest watch mode and `npm run test:e2e:ui` for Pla
 - **Backend:** Node.js 24, PostgreSQL 17, Prisma generation/migrations, unit tests, build, and API E2E tests.
 - **Frontend:** unit tests, ESLint, and production build.
 - **Docker:** Compose validation and application image builds.
-- **Frontend E2E:** pulls `postgres` and `uploads-init` sequentially using `--policy missing`, with up to five attempts per service and 15/30/60/120-second retry delays. Builds application images separately, starts with `--no-build --pull never`, then runs Chromium tests and uploads the Playwright report.
+- **Frontend E2E:** enables the main Compose file's `e2e` profile and uses `backend/test/e2e.env`, pulls `postgres`, `uploads-init` and `mailpit` sequentially using `--policy missing`, with up to five attempts per service and 15/30/60/120-second retry delays. Builds application images separately, starts with `--no-build --pull never`, then runs Chromium tests and uploads the Playwright report. Cleanup removes the test project volumes.
 - **Publish:** after all checks pass on a push to `main`, publishes backend/frontend images to GHCR with commit-SHA and `latest` tags using Buildx and GitHub Actions cache. A successful CI run triggers the production release flow described above.
 
 ## Security and Implementation Notes
@@ -649,7 +667,5 @@ Use `npm run test:watch` for Vitest watch mode and `npm run test:e2e:ui` for Pla
 - Production secrets are stored outside the repository in `.env.production`.
 
 ## Remaining Work
-
-- Broader Playwright E2E coverage for projects, comments, labels, notifications, attachments, and RBAC edge cases.
-- Optional frontend coverage reporting with a dedicated Vitest coverage provider.
+`
 - Basic production monitoring and centralized log collection.

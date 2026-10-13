@@ -17,10 +17,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { PrismaService } from '../prisma/prisma.service';
-import { RealtimeService } from '../realtime/realtime.service';
-import { ProjectsService } from './projects.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { RealtimeService } from '../../../src/realtime/realtime.service';
+import { ProjectsService } from '../../../src/projects/projects.service';
+import { NotificationsService } from '../../../src/notifications/notifications.service';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;

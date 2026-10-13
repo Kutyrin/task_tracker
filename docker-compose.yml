@@ -1,4 +1,15 @@
 services:
+  mailpit:
+    image: ghcr.io/axllent/mailpit:v1.31.3
+    profiles: ['e2e']
+    ports:
+      - '127.0.0.1:8025:8025'
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   postgres:
     image: public.ecr.aws/docker/library/postgres:17
     restart: unless-stopped
@@ -30,7 +41,7 @@ services:
     restart: unless-stopped
     user: '1000:1000'
     env_file:
-      - ./backend/.env
+      - ${BACKEND_ENV_FILE:-./backend/.env}
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -51,7 +62,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 120s
     depends_on:
       postgres:
         condition: service_healthy

@@ -17,10 +17,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { PrismaService } from '../prisma/prisma.service';
-import { RealtimeService } from '../realtime/realtime.service';
-import { BoardsService } from './boards.service';
-import { taskRelations } from '../tasks/task.mapper';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { RealtimeService } from '../../../src/realtime/realtime.service';
+import { BoardsService } from '../../../src/boards/boards.service';
+import { taskRelations } from '../../../src/tasks/task.mapper';
 
 describe('BoardsService', () => {
   let service: BoardsService;

@@ -1,9 +1,9 @@
 import { NotFoundException } from '@nestjs/common';
 import { NotificationType, Prisma } from '@prisma/client';
 
-import { NotificationsService } from './notifications.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { RealtimeService } from '../realtime/realtime.service';
+import { NotificationsService } from '../../../src/notifications/notifications.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { RealtimeService } from '../../../src/realtime/realtime.service';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;

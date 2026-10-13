@@ -19,9 +19,9 @@ import {
 
 import { ActivityType } from '@prisma/client';
 
-import { PrismaService } from '../prisma/prisma.service';
-import { RealtimeService } from '../realtime/realtime.service';
-import { LabelsService } from './labels.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { RealtimeService } from '../../../src/realtime/realtime.service';
+import { LabelsService } from '../../../src/labels/labels.service';
 
 describe('LabelsService', () => {
   let service: LabelsService;
