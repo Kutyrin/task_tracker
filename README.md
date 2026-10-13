@@ -2,8 +2,6 @@
 
 A full-stack issue and project management platform inspired by Jira and Kaiten. The project combines a NestJS REST API, a Next.js frontend, PostgreSQL persistence, role-based access control, real-time collaboration, Kanban workflows, notifications, file attachments, and calendar-based task tracking.
 
-The application is designed as a complete full-stack system rather than a simple CRUD demo. It includes JWT authentication with access and refresh token rotation, project-level RBAC, transactional issue numbering, real-time synchronization through Socket.IO, automated unit and E2E testing, Docker-based local development, and a production CI/CD pipeline that builds Docker images, publishes them to GitHub Container Registry, and deploys them to a VPS.
-
 ## Demo
 
 Production:
@@ -16,7 +14,7 @@ Production:
 
 ### Backend
 
-- **Authentication:** registration, login, current user, JWT access and refresh tokens, refresh-token rotation, logout, and bcrypt password hashing.
+- **Authentication:** registration, login, current user, JWT access and refresh tokens, refresh-token rotation, logout, bcrypt password hashing, and email-based password recovery.
 - **Projects:** CRUD, unique project keys, automatic owner membership, and member management by user ID or email.
 - **Access control:** project membership checks and `OWNER`, `ADMIN`, and `MEMBER` roles.
 - **Boards:** CRUD, default Backlog / To Do / In Progress / Done columns, column management, and reordering.
@@ -35,7 +33,7 @@ Production:
 
 ### Frontend
 
-- Registration, login, logout, protected routes, session restoration, and automatic token refresh.
+- Registration, login, logout, password recovery, protected routes, session restoration, and automatic token refresh.
 - Project listing, creation, and deletion.
 - Project pages with members, roles, boards, labels, and activity history.
 - Kanban boards with task creation, filtering, drag-and-drop movement, ordering, and column management.
@@ -51,6 +49,8 @@ Routes:
 /
 /register
 /login
+/forgot-password
+/reset-password
 /dashboard
 /projects
 /projects/new
@@ -66,9 +66,9 @@ Routes:
 | --------------------- | ---------------------------------------------------------- |
 | Runtime               | Node.js 24, npm                                            |
 | Backend               | NestJS 12, TypeScript, Prisma 6.19.3, PostgreSQL 17        |
-| Authentication        | JWT, Passport, bcrypt                                      |
+| Authentication        | JWT, Passport, bcrypt, Nodemailer / SMTP                   |
 | Uploads and real-time | Multer, local filesystem, Socket.IO 4                      |
-| Frontend              | Next.js 16.3.3, React 19.2.8, TypeScript, Tailwind CSS 4   |
+| Frontend              | Next.js 16.3.8+, React 19.2.8, TypeScript, Tailwind CSS 4  |
 | State and forms       | Redux Toolkit, TanStack Query, Axios, React Hook Form, Zod |
 | Backend testing       | Jest 30, SWC, Nest testing utilities, Supertest            |
 | Frontend testing      | Vitest 4, React Testing Library, jsdom, Playwright         |
@@ -136,12 +136,12 @@ Recharts is installed, while current dashboard distributions are rendered with C
         └── tests/
 ```
 
-The backend uses feature modules, controllers for HTTP routes, services for business rules and access checks, DTOs for validation, and Prisma for persistence.
+The backend uses feature modules, controllers for HTTP routes, services for business rules and access checks, DTOs declaring validation constraints, and Prisma for persistence. The E2E bootstrap installs a global `ValidationPipe`; the current application bootstrap does not.
 
 ## Domain Model
 
 - `User` joins a `Project` through `ProjectMember`.
-- A project has boards, tasks, labels, activities, and notifications.
+- A project has boards, tasks, labels, and notifications; project activity is collected through its tasks.
 - A board contains ordered `BoardColumn` records.
 - `Task` is the persistence model for an issue, with a reporter and optional assignee.
 - Tasks have comments, activity records, attachments, and labels.
@@ -162,92 +162,37 @@ Comment editing is restricted to the author. Owners and admins can also delete o
 
 Attachments can be deleted by their uploader or a project owner/admin.
 
-## Docker
-
-The project supports both local and production Docker Compose environments.
-
-### Local Architecture
-
-```text
-PostgreSQL 17
-      │
-      ▼
-NestJS backend
-      │
-      ▼
-Next.js frontend
-```
-
-Services:
-
-| Service    | Container port | Host port |
-| ---------- | -------------: | --------: |
-| PostgreSQL |           5432 |      5433 |
-| Backend    |           3001 |      3001 |
-| Frontend   |           3000 |      3000 |
-
-The backend waits for PostgreSQL health, applies Prisma migrations before startup, and stores uploaded files in the persistent `uploads_data` volume.
-
-The frontend uses `NEXT_PUBLIC_API_URL=http://localhost:3001`, because API requests originate from the user's browser.
-
-### Production Architecture
-
-```text
-Internet
-   │
-   ├── https://app.mytasktrackeronline.ru
-   │            │
-   │          Nginx
-   │            │
-   │        Frontend :3000
-   │
-   └── https://api.mytasktrackeronline.ru
-                │
-              Nginx
-                │
-            Backend :3001
-                │
-            PostgreSQL :5432
-```
-
-Production services run on a VPS.
-
-- Nginx terminates HTTPS and acts as a reverse proxy.
-- Let's Encrypt provides TLS certificates.
-- Frontend and backend containers are bound to localhost on the VPS.
-- PostgreSQL runs as a separate container with persistent storage.
-- Uploaded files are stored in persistent Docker storage.
-- Production images are pulled from GitHub Container Registry.
-- PostgreSQL backups are created automatically once per day and retained locally for seven days.
-
-Production configuration is stored in `.env.production` on the VPS and is not committed to the repository.
-
 ## Local Development
 
-### Requirements
+Use Node.js 24.x, npm, and Docker with Docker Compose. Backend and frontend have separate package manifests and lockfiles; run npm commands in the indicated directory.
 
-- Node.js 24.x and npm
-- Docker with Docker Compose
+### Environment
 
-Backend and frontend have separate `package.json` and lockfiles. Run npm commands in the corresponding directory.
-
-### Backend Setup
-
-Create `backend/.env`:
+Create `backend/.env` from [backend/.env.example](backend/.env.example). Required startup variables are `DATABASE_URL`, `JWT_SECRET`, and `JWT_REFRESH_SECRET`:
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5433/task_tracker"
-
 JWT_SECRET="replace-with-a-long-random-access-secret"
-
 JWT_REFRESH_SECRET="replace-with-a-different-long-random-refresh-secret"
-
 PORT=3001
-
 CORS_ORIGIN="http://localhost:3000"
 ```
 
-Install and run:
+Create `frontend/.env.local` from [frontend/.env.example](frontend/.env.example):
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
+
+### Run with local Node.js processes
+
+First start PostgreSQL from the repository root:
+
+```bash
+docker compose up -d postgres
+```
+
+Then install and start the backend:
 
 ```bash
 cd backend
@@ -258,39 +203,7 @@ node -e "require('node:fs').mkdirSync('uploads', { recursive: true })"
 npm run start:dev
 ```
 
-The backend runs at:
-
-```text
-http://localhost:3001
-```
-
-Health check:
-
-```text
-GET http://localhost:3001/health
-```
-
-Create a new Prisma migration with:
-
-```bash
-npx prisma migrate dev --name <migration-name>
-```
-
-Validate the Prisma schema with:
-
-```bash
-npx prisma validate
-```
-
-### Frontend Setup
-
-Create `frontend/.env.local`:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
-```
-
-Install and run:
+In another terminal, from the repository root:
 
 ```bash
 cd frontend
@@ -298,59 +211,34 @@ npm ci
 npm run dev
 ```
 
-The frontend runs at:
+Open [registration](http://localhost:3000/register) or [login](http://localhost:3000/login); authentication opens `/dashboard`. Check backend/database connectivity at [http://localhost:3001/health](http://localhost:3001/health).
 
-```text
-http://localhost:3000
-```
+For schema changes, run `npx prisma migrate dev --name <migration-name>` from `backend/`. Use `npx prisma validate` to validate the schema.
 
-Open:
+### Run the complete Docker stack
 
-```text
-http://localhost:3000/register
-```
-
-to create an account, or:
-
-```text
-http://localhost:3000/login
-```
-
-to sign in.
-
-Successful authentication opens `/dashboard`.
-
-### Complete Docker Stack
-
-From the repository root:
+After creating `backend/.env`, run from the repository root:
 
 ```bash
 docker compose up -d --build
 ```
 
-The stack starts PostgreSQL, backend, and frontend in health-check order.
+| Service        | Purpose                                                           | Local host port           |
+| -------------- | ----------------------------------------------------------------- | ------------------------- |
+| `postgres`     | PostgreSQL 17 with the `postgres_data` volume                     | `5433` → container `5432` |
+| `uploads-init` | One-shot initialization of upload ownership for UID/GID 1000      | None                      |
+| `backend`      | NestJS; waits for PostgreSQL and successful upload initialization | `3001`                    |
+| `frontend`     | Next.js; waits for backend health                                 | `3000`                    |
 
-Open:
+The backend applies Prisma migrations before starting the HTTP server. Attachments persist in `uploads_data`; `uploads-init` finishing with exit code 0 is expected.
 
-```text
-http://localhost:3000
-```
+PostgreSQL and Node images come from `public.ecr.aws/docker/library/`, including the base images in both Dockerfiles. No Docker Hub credentials are used by the current workflows. Public registries can still throttle pulls; CI handles dependency pulls as described below.
 
-Backend health:
+Compose overrides the backend database address to `postgres:5432`. `CORS_ORIGIN` and `NEXT_PUBLIC_API_URL` can be set in the shell or a root Compose `.env`; their defaults are `http://localhost:3000` and `http://localhost:3001`. The API URL must be reachable by the browser and is embedded during the frontend build, so changing it requires rebuilding the frontend image.
 
-```text
-http://localhost:3001/health
-```
+Stop local Node.js servers before starting the complete stack to avoid port conflicts. `docker compose down` stops the stack while retaining its volumes.
 
-Stop the stack:
-
-```bash
-docker compose down
-```
-
-Database and uploaded files persist in Docker volumes.
-
-### Backend Build
+### Builds
 
 From `backend/`:
 
@@ -359,8 +247,6 @@ npm run build
 node dist/main.js
 ```
 
-### Frontend Build
-
 From `frontend/`:
 
 ```bash
@@ -368,49 +254,77 @@ npm run build
 npm start
 ```
 
-Frontend development and build scripts explicitly use Webpack.
+Frontend development and builds explicitly use Webpack.
+
+## Password Recovery
+
+`/forgot-password` requests an email link; `/reset-password?token=...` sets a new password. Configure the backend SMTP variables in `backend/.env` locally or `.env.production` on the VPS:
+
+| Variable                     | Purpose                                                             |
+| ---------------------------- | ------------------------------------------------------------------- |
+| `SMTP_HOST`, `SMTP_FROM`     | SMTP server and sender; required for delivery                       |
+| `SMTP_PORT`, `SMTP_SECURE`   | Provider-specific port and TLS mode                                 |
+| `SMTP_USER`, `SMTP_PASSWORD` | SMTP credentials, configured together when authentication is needed |
+| `FRONTEND_URL`               | Public frontend origin used to construct reset links                |
+
+The backend example uses port `587` with `SMTP_SECURE=false`; the production example uses `2465` with `true`. Replace these with your provider's settings. Without SMTP configuration the application can start, but reset emails cannot be delivered.
+
+Reset tokens expire after 30 minutes, are stored as SHA-256 hashes, and can be used once. Requests for the same account have a 60-second cooldown and return a generic response regardless of account existence or delivery failure. A successful reset invalidates the stored refresh token; already issued access tokens remain valid until expiry.
 
 ## Production Deployment
 
-Production deployment is automated with GitHub Actions.
+The production topology is Nginx / HTTPS → frontend (`127.0.0.1:3000`) and backend (`127.0.0.1:3001`) → PostgreSQL on the internal Docker network. The repository includes an [Nginx example](deploy/nginx/task-tracker.conf.example) with Socket.IO forwarding and Let's Encrypt certificate paths; Nginx installation and certificate provisioning are separate VPS setup steps.
 
-The deployment workflow:
+### Configuration
 
-1. Runs after a successful CI workflow on `main`.
-2. Uses the CI commit SHA as the Docker image version.
-3. Connects to the VPS over SSH.
-4. Pulls the corresponding images from GHCR.
-5. Restarts the production stack with Docker Compose.
-6. Runs application health checks.
-7. Leaves the PostgreSQL and upload data in persistent Docker storage.
-8. Runs an automated daily PostgreSQL backup with seven-day retention.
+Create `.env.production` on the VPS from [.env.production.example](.env.production.example). Set the database credentials, JWT secrets, `GHCR_IMAGE_NAMESPACE`, `IMAGE_TAG`, `CORS_ORIGIN`, `NEXT_PUBLIC_API_URL`, and SMTP settings for password recovery. The production Compose file constructs `DATABASE_URL` from the PostgreSQL variables; use URL-safe database credentials as in the example.
 
-Production services:
+Application images come from GHCR; PostgreSQL and `uploads-init` use ECR Public. Backend runs as UID 1000, and both application services use `no-new-privileges`. PostgreSQL and attachments use persistent volumes. Backend health checks have a **180-second startup grace period** to allow migrations and slower VPS startup before failures count toward an unhealthy state.
 
-```text
-Frontend      https://app.mytasktrackeronline.ru
-API           https://api.mytasktrackeronline.ru
-Health check  https://api.mytasktrackeronline.ru/health
+GitHub configuration:
+
+| Setting                                       | Purpose                                                    |
+| --------------------------------------------- | ---------------------------------------------------------- |
+| Variable `NEXT_PUBLIC_API_URL`                | Production API origin embedded when CI builds the frontend |
+| Secrets `VPS_HOST`, `VPS_USER`, `VPS_APP_DIR` | SSH destination and existing application directory         |
+| Secrets `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS`      | SSH private key and trusted server host keys               |
+| Environment `production`                      | Deployment environment used by the Deploy job              |
+
+CI uses the built-in `GITHUB_TOKEN` with `packages: write` for GHCR publishing. `DOCKERHUB_TOKEN` and `DOCKERHUB_USERNAME` are not referenced. Deploy does not log the VPS into GHCR: private application images require registry access configured on the server beforehand. Keep actual `.env` files and secret values outside Git.
+
+### Release flow
+
+After CI succeeds for a push to `main`, [deploy.yml](.github/workflows/deploy.yml):
+
+1. Checks out the successful CI commit and uses its SHA as `IMAGE_TAG`.
+2. Uploads that commit's production Compose file as a temporary file in `VPS_APP_DIR`.
+3. Validates it and pulls release images, retrying up to three times with 10- and 20-second delays.
+4. Replaces the active Compose file only after pulls succeed, then runs `up -d --remove-orphans`.
+5. Checks the backend health endpoint and frontend HTTP response; collects service logs on deployment failure or health timeout.
+6. Removes dangling Docker images after success.
+
+The workflow leaves `.env.production` and data volumes on the VPS. It does not install Nginx, provision TLS, or configure database backup timers. A failure after container replacement does not automatically roll back the release.
+
+### Troubleshooting on the VPS
+
+From the application directory:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml ps -a
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --no-color --tail=100 backend
 ```
 
-Production environment variables are stored in `.env.production` on the VPS:
+If backend is now healthy but frontend remains `Created` after an earlier startup timeout, start the existing frontend container:
 
-```text
-NEXT_PUBLIC_API_URL
-GHCR_IMAGE_NAMESPACE
-POSTGRES_USER
-POSTGRES_PASSWORD
-POSTGRES_DB
-CORS_ORIGIN
-JWT_SECRET
-JWT_REFRESH_SECRET
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml start frontend
 ```
 
-Secrets are never committed to the repository.
+This starts the existing image without selecting a new release tag. For a new release, use the deployment workflow so the Compose file and image SHA stay aligned.
 
 ## Production Backup and Restoration
 
-Production PostgreSQL data is backed up automatically on the VPS.
+The previously documented VPS backup setup uses a separately provisioned systemd timer. Its script and unit files are not included in this repository, and CI/CD does not install them. Verify the timer on the server before relying on the schedule below.
 
 ### Backup Strategy
 
@@ -482,7 +396,7 @@ sudo gzip -t /opt/task-tracker/backups/postgres_<timestamp>.sql.gz
 
 Production backups should be tested by restoring them into a temporary PostgreSQL database without modifying the live production database.
 
-The verified restoration procedure is:
+To test an existing SQL dump in a temporary database:
 
 ```bash
 cd /opt/task-tracker
@@ -497,7 +411,7 @@ BACKUP="/opt/task-tracker/backups/postgres_<timestamp>.sql.gz"
 sudo docker exec "$POSTGRES_CONTAINER" \
   sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE restore_test_manual;"'
 
-gzip -dc "$BACKUP" | sudo docker exec -i \
+sudo gzip -dc "$BACKUP" | sudo docker exec -i \
   "$POSTGRES_CONTAINER" \
   sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d restore_test_manual'
 ```
@@ -518,7 +432,7 @@ sudo docker exec "$POSTGRES_CONTAINER" \
 
 A successful restoration test confirms that the backup is readable and can be restored by PostgreSQL without affecting the live production database.
 
-The current production backup has been successfully tested using this procedure, with the restored database containing 13 public tables.
+Check the restored schema and application data against the chosen backup; table counts change with migrations. Database dumps do not include files in the `uploads_data` volume.
 
 ### Full Production Restore
 
@@ -565,7 +479,7 @@ Authorization: Bearer <accessToken>
 | Resource       | Routes                                                                                                                                                                                  |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Health         | `GET /health`                                                                                                                                                                           |
-| Authentication | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`                                                                                    |
+| Authentication | `POST /auth/register`, `POST /auth/login`, `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`                         |
 | Projects       | `POST /projects`, `GET /projects`, `GET /projects/:id`, `PATCH /projects/:id`, `DELETE /projects/:id`                                                                                   |
 | Statistics     | `GET /projects/stats`, `GET /projects/:id/stats`                                                                                                                                        |
 | Members        | `GET /projects/:projectId/members`, `POST /projects/:projectId/members`, `PATCH /projects/:projectId/members/:memberId`, `DELETE /projects/:projectId/members/:memberId`                |
@@ -607,7 +521,7 @@ sortBy=createdAt
 sortOrder=desc
 ```
 
-The maximum declared page size is `100`.
+The maximum declared page size is `100`. Sort fields are `createdAt`, `updatedAt`, `dueDate`, `priority`, `title`, and `position`, with `asc` or `desc` ordering.
 
 ### Calendar Queries
 
@@ -679,16 +593,9 @@ npm run test:cov
 npm run test:e2e
 ```
 
-Current backend test suite:
-
-```text
-278 unit tests
-74 API E2E tests
-```
-
 Unit tests cover business services, task mapping, authentication, JWT strategy, real-time services, gateway behavior, and guards.
 
-API E2E tests exercise authentication, projects, boards, tasks, comments, labels, attachments, and application endpoints against PostgreSQL.
+API E2E tests exercise authentication, projects, boards, tasks, comments, labels, attachments, and application endpoints against PostgreSQL. Use a dedicated migrated test database and backend environment variables: these tests create persistent users and project data.
 
 ### Frontend Tests
 
@@ -698,14 +605,6 @@ From `frontend/`:
 npm test
 npm run lint
 npm run build
-npm run test:e2e
-```
-
-Current frontend test suite:
-
-```text
-170 Vitest tests
-3 Playwright E2E tests
 ```
 
 Vitest and React Testing Library cover utility functions, query and mutation hooks, real-time hooks, components, and pages.
@@ -716,110 +615,27 @@ Install Chromium before running browser tests for the first time:
 
 ```bash
 npx playwright install chromium
+npm run test:e2e
 ```
 
-The current Playwright configuration expects the frontend and backend to be running at:
+Playwright does not start servers automatically. Its tests create data in the running backend; use a test environment. The configured URLs are:
 
 ```text
 http://localhost:3000
 http://localhost:3001
 ```
 
-### Test Coverage Summary
-
-| Area                    |   Tests |
-| ----------------------- | ------: |
-| Backend unit            |     278 |
-| Backend API E2E         |      74 |
-| Frontend Vitest         |     170 |
-| Frontend Playwright E2E |       3 |
-| **Total**               | **525** |
+Use `npm run test:watch` for Vitest watch mode and `npm run test:e2e:ui` for Playwright's UI. The `test:coverage` script exists, but a dedicated Vitest coverage provider is not installed. Test totals are reported by each run rather than maintained manually here.
 
 ## CI/CD
 
-GitHub Actions runs on pull requests and pushes to `main`, `master`, and `develop`.
+[ci.yml](.github/workflows/ci.yml) runs on pull requests and pushes to `main`, `master`, and `develop`:
 
-The main CI workflow is defined in:
-
-```text
-.github/workflows/ci.yml
-```
-
-The production deployment workflow is defined in:
-
-```text
-.github/workflows/deploy.yml
-```
-
-### CI Pipeline
-
-```text
-Backend
-├── install dependencies
-├── Prisma generate
-├── Prisma migrations
-├── unit tests
-├── build
-└── API E2E
-
-Frontend
-├── install dependencies
-├── unit tests
-├── lint
-└── build
-
-Docker
-├── Compose validation
-└── Docker image builds
-
-Frontend E2E
-├── start Docker Compose stack
-├── wait for health checks
-├── install Chromium
-├── Playwright E2E
-└── upload Playwright report
-
-Publish Docker images
-├── build backend image
-├── build frontend image
-└── push images to GHCR
-```
-
-Docker image publishing runs for `main`.
-
-Production deployment is triggered after a successful CI workflow on `main`.
-
-The deployment flow is:
-
-```text
-Pull Request
-     │
-     ▼
-   main
-     │
-     ▼
-   CI
-     │
-     ├── tests
-     ├── builds
-     ├── E2E
-     └── Docker images
-             │
-             ▼
-            GHCR
-             │
-             ▼
-    Deploy to production
-             │
-             ▼
-            VPS
-             │
-             ├── docker compose pull
-             ├── docker compose up -d
-             └── health checks
-```
-
-Docker Buildx with GitHub Actions cache is used when publishing production images.
+- **Backend:** Node.js 24, PostgreSQL 17, Prisma generation/migrations, unit tests, build, and API E2E tests.
+- **Frontend:** unit tests, ESLint, and production build.
+- **Docker:** Compose validation and application image builds.
+- **Frontend E2E:** pulls `postgres` and `uploads-init` sequentially using `--policy missing`, with up to five attempts per service and 15/30/60/120-second retry delays. Builds application images separately, starts with `--no-build --pull never`, then runs Chromium tests and uploads the Playwright report.
+- **Publish:** after all checks pass on a push to `main`, publishes backend/frontend images to GHCR with commit-SHA and `latest` tags using Buildx and GitHub Actions cache. A successful CI run triggers the production release flow described above.
 
 ## Security and Implementation Notes
 
@@ -830,10 +646,7 @@ Docker Buildx with GitHub Actions cache is used when publishing production image
 - Uploaded files are stored in persistent Docker storage but are not exposed through a public static `/uploads` route.
 - HTTP CORS is configurable.
 - The Socket.IO gateway declares its own origin policy separately from HTTP CORS.
-- Production traffic is terminated through Nginx with Let's Encrypt TLS certificates.
-- Backend and frontend containers are not exposed directly to the public network; external access is provided through Nginx.
 - Production secrets are stored outside the repository in `.env.production`.
-- PostgreSQL backups are generated daily and retained locally for seven days.
 
 ## Remaining Work
 
