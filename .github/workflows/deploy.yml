@@ -88,43 +88,41 @@ jobs:
 
           mv -- "$candidate" docker-compose.prod.yml
           docker compose --env-file .env.production -f docker-compose.prod.yml \
-            up -d --remove-orphans
+            up -d --remove-orphans --pull never --wait --wait-timeout 300
           REMOTE
       
+      - name: Wait for application health
+        run: |
+          set -euo pipefail
+          printf -v remote_command 'bash -s -- %q %q' "$VPS_APP_DIR" "$IMAGE_TAG"
+          ssh "$VPS_USER@$VPS_HOST" "$remote_command" <<'REMOTE'
+          set -euo pipefail
+          cd -- "$1"
+          export IMAGE_TAG="$2"
+          for i in {1..60}; do
+            if curl --connect-timeout 3 --max-time 5 -fsS http://127.0.0.1:3001/health >/dev/null &&
+               curl --connect-timeout 3 --max-time 5 -fsS http://127.0.0.1:3000 >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Application health check failed'
+          exit 1
+          REMOTE
+
       - name: Collect production logs after deployment failure
         if: failure()
         run: |
-          ssh "$VPS_USER@$VPS_HOST" \
-            "cd '$VPS_APP_DIR' && { \
-              docker compose \
-                --env-file .env.production \
-                -f docker-compose.prod.yml ps -a; \
-              docker compose \
-                --env-file .env.production \
-                -f docker-compose.prod.yml \
-                logs --no-color --tail=200 backend postgres frontend; \
-            }"
-
-      - name: Wait for application health
-        run: |
-          ssh "$VPS_USER@$VPS_HOST" \
-            "cd '$VPS_APP_DIR' && \
-            for i in {1..60}; do \
-              if curl -fsS http://127.0.0.1:3001/health >/dev/null && \
-                 curl -fsS http://127.0.0.1:3000 >/dev/null; then \
-                exit 0; \
-              fi; \
-              sleep 2; \
-            done; \
-            docker compose \
-              --env-file .env.production \
-              -f docker-compose.prod.yml \
-              ps; \
-            docker compose \
-              --env-file .env.production \
-              -f docker-compose.prod.yml \
-              logs --tail=200 backend frontend; \
-            exit 1"
+          set -euo pipefail
+          printf -v remote_command 'bash -s -- %q %q' "$VPS_APP_DIR" "$IMAGE_TAG"
+          ssh "$VPS_USER@$VPS_HOST" "$remote_command" <<'REMOTE'
+          set -euo pipefail
+          cd -- "$1"
+          export IMAGE_TAG="$2"
+          docker compose --env-file .env.production -f docker-compose.prod.yml ps -a
+          docker compose --env-file .env.production -f docker-compose.prod.yml \
+            logs --no-color --tail=200 backend postgres frontend
+          REMOTE
 
       - name: Cleanup unused Docker images
         if: success()

@@ -18,30 +18,14 @@ concurrency:
 jobs:
   backend:
     name: Backend unit, API E2E and build
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        # Docker Official Images on ECR Public avoid Docker Hub pull limits.
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: task_tracker
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres -d task_tracker"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=10
+    runs-on: ubuntu-24.04
 
     defaults:
       run:
         working-directory: backend
 
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/task_tracker
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5434/task_tracker
       JWT_SECRET: ci-test-secret
       JWT_REFRESH_SECRET: ci-test-refresh-secret
       PORT: 3001
@@ -50,6 +34,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install and start PostgreSQL 17
+        working-directory: .
+        run: bash .github/scripts/setup-postgres.sh
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -218,14 +206,14 @@ jobs:
 
       - name: Start Docker Compose stack
         working-directory: .
-        run: docker compose up -d --no-build --pull never
+        run: docker compose up -d --no-build --pull never --wait --wait-timeout 240
 
       - name: Wait for application
         working-directory: .
         run: |
           for i in {1..60}; do
-            if curl -fsS http://localhost:3001/health >/dev/null &&
-               curl -fsS http://localhost:3000 >/dev/null; then
+            if curl --connect-timeout 3 --max-time 5 -fsS http://localhost:3001/health >/dev/null &&
+               curl --connect-timeout 3 --max-time 5 -fsS http://localhost:3000 >/dev/null; then
               exit 0
             fi
             sleep 2

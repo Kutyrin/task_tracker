@@ -649,7 +649,7 @@ Both commands print statements, branches, functions and lines percentages, inclu
 
 [ci.yml](.github/workflows/ci.yml) runs on pull requests and pushes to `main`, `master`, and `develop`:
 
-- **Backend:** Node.js 24, PostgreSQL 17, Prisma generation/migrations, unit tests, build, and API E2E tests.
+- **Backend:** Ubuntu 24.04, Node.js 24 and native PostgreSQL 17, installed from PGDG if missing. An isolated `17/ci` cluster on port 5434 is checked with a password-authenticated SQL query before Prisma migrations, unit tests, build and API E2E tests. There is no Docker service pull before job steps.
 - **Frontend:** unit tests, ESLint, and production build.
 - **Docker:** Compose validation and application image builds.
 - **Frontend E2E:** enables the main Compose file's `e2e` profile and uses `backend/test/e2e.env`. It resolves the images for `postgres`, `uploads-init` and `mailpit` from Compose and pulls them sequentially, reusing local images. If ECR Public fails, `.github/scripts/pull-image.sh` tries the same official image tag on Docker Hub and tags it with the name expected by Compose. GHCR images are retried without registry substitution. There are up to five rounds with 15/30/60/120-second delays; both public registries can impose limits. The Docker build job also uses this helper for its Node pre-pull. Application images are built separately, the stack starts with `--no-build --pull never`, then Chromium tests run and upload the Playwright report. Cleanup removes the test project volumes.
