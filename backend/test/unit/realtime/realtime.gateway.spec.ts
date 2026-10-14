@@ -4,9 +4,9 @@ import { WsException } from '@nestjs/websockets';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 
-import { PrismaService } from '../prisma/prisma.service';
-import { RealtimeGateway } from './realtime.gateway';
-import { RealtimeService } from './realtime.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { RealtimeGateway } from '../../../src/realtime/realtime.gateway';
+import { RealtimeService } from '../../../src/realtime/realtime.service';
 
 describe('RealtimeGateway', () => {
   let gateway: RealtimeGateway;

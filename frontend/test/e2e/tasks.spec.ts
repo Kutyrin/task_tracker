@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { apiURL } from './helpers';
 
 interface AuthResponse {
   accessToken: string;
@@ -29,19 +30,16 @@ function createProjectKey() {
 test('user can create and move a task', async ({ page, request }) => {
   const credentials = createCredentials();
 
-  const registerResponse = await request.post(
-    'http://localhost:3001/auth/register',
-    {
-      data: {
-        email: credentials.email,
-        password: credentials.password,
-      },
+  const registerResponse = await request.post(`${apiURL}/auth/register`, {
+    data: {
+      email: credentials.email,
+      password: credentials.password,
     },
-  );
+  });
 
   expect(registerResponse.ok()).toBeTruthy();
 
-  const loginResponse = await request.post('http://localhost:3001/auth/login', {
+  const loginResponse = await request.post(`${apiURL}/auth/login`, {
     data: {
       email: credentials.email,
       password: credentials.password,
@@ -52,7 +50,7 @@ test('user can create and move a task', async ({ page, request }) => {
 
   const auth = (await loginResponse.json()) as AuthResponse;
 
-  const projectResponse = await request.post('http://localhost:3001/projects', {
+  const projectResponse = await request.post(`${apiURL}/projects`, {
     headers: {
       Authorization: `Bearer ${auth.accessToken}`,
     },
@@ -67,7 +65,7 @@ test('user can create and move a task', async ({ page, request }) => {
 
   const project = (await projectResponse.json()) as ProjectResponse;
 
-  const boardResponse = await request.post('http://localhost:3001/boards', {
+  const boardResponse = await request.post(`${apiURL}/boards`, {
     headers: {
       Authorization: `Bearer ${auth.accessToken}`,
     },
@@ -117,7 +115,7 @@ test('user can create and move a task', async ({ page, request }) => {
   await expect(inProgressHeading).toBeVisible();
 
   const boardDetailsResponse = await request.get(
-    `http://localhost:3001/boards/${board.id}`,
+    `${apiURL}/boards/${board.id}`,
     {
       headers: {
         Authorization: `Bearer ${auth.accessToken}`,
@@ -182,14 +180,11 @@ test('user can create and move a task', async ({ page, request }) => {
   await expect
     .poll(
       async () => {
-        const response = await request.get(
-          `http://localhost:3001/tasks/${taskId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${auth.accessToken}`,
-            },
+        const response = await request.get(`${apiURL}/tasks/${taskId}`, {
+          headers: {
+            Authorization: `Bearer ${auth.accessToken}`,
           },
-        );
+        });
 
         if (!response.ok()) {
           return null;

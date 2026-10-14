@@ -1,7 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
 
-import { MailService } from './mail.service';
+import { MailService } from '../../../src/auth/mail.service';
 
 jest.mock('nodemailer', () => ({
   createTransport: jest.fn(),

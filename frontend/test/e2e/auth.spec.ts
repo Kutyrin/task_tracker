@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { apiURL } from './helpers';
 
 function createCredentials() {
   const suffix = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -31,15 +32,12 @@ test('user can register and reach dashboard', async ({ page }) => {
 test('user can sign in', async ({ page, request }) => {
   const credentials = createCredentials();
 
-  const registerResponse = await request.post(
-    'http://localhost:3001/auth/register',
-    {
-      data: {
-        email: credentials.email,
-        password: credentials.password,
-      },
+  const registerResponse = await request.post(`${apiURL}/auth/register`, {
+    data: {
+      email: credentials.email,
+      password: credentials.password,
     },
-  );
+  });
 
   expect(registerResponse.ok()).toBeTruthy();
 

@@ -2,12 +2,13 @@
 module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
-  testRegex: '.*\\.spec\\.ts$',
+  testMatch: ['<rootDir>/test/unit/**/*.spec.ts'],
   transform: {
     '^.+\\.(t|j)s$': ['@swc/jest'],
   },
   transformIgnorePatterns: ['node_modules/(?!@nestjs/)'],
   collectCoverageFrom: ['src/**/*.ts'],
   coverageDirectory: './coverage',
+  coverageReporters: ['text', 'html', 'json-summary', 'lcov'],
   testEnvironment: 'node',
 };

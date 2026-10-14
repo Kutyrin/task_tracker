@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { WsException } from '@nestjs/websockets';
 
-import { WsJwtGuard } from './ws-jwt.guard';
+import { WsJwtGuard } from '../../../../src/realtime/guards/ws-jwt.guard';
 
 describe('WsJwtGuard', () => {
   let guard: WsJwtGuard;

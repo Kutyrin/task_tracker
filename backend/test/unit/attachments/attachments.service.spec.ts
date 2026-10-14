@@ -21,9 +21,9 @@ import { ActivityType } from '@prisma/client';
 import { access, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { PrismaService } from '../prisma/prisma.service';
-import { RealtimeService } from '../realtime/realtime.service';
-import { AttachmentsService } from './attachments.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { RealtimeService } from '../../../src/realtime/realtime.service';
+import { AttachmentsService } from '../../../src/attachments/attachments.service';
 
 const accessMock = access as jest.Mock;
 const unlinkMock = unlink as jest.Mock;

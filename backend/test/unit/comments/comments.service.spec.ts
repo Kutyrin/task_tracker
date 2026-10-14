@@ -21,10 +21,10 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 import { ActivityType } from '@prisma/client';
 
-import { PrismaService } from '../prisma/prisma.service';
-import { RealtimeService } from '../realtime/realtime.service';
-import { CommentsService } from './comments.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { RealtimeService } from '../../../src/realtime/realtime.service';
+import { CommentsService } from '../../../src/comments/comments.service';
+import { NotificationsService } from '../../../src/notifications/notifications.service';
 
 describe('CommentsService', () => {
   let service: CommentsService;

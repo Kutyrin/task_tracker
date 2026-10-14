@@ -1,4 +1,4 @@
-import { RealtimeService } from './realtime.service';
+import { RealtimeService } from '../../../src/realtime/realtime.service';
 
 describe('RealtimeService', () => {
   let service: RealtimeService;

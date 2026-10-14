@@ -1,4 +1,4 @@
-import { mapTask } from './task.mapper';
+import { mapTask } from '../../../src/tasks/task.mapper';
 
 describe('mapTask', () => {
   it('should flatten task labels and generate issue key', () => {

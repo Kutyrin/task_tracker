@@ -17,8 +17,8 @@ import { NotFoundException } from '@nestjs/common';
 
 import { ActivityType } from '@prisma/client';
 
-import { PrismaService } from '../prisma/prisma.service';
-import { ActivitiesService } from './activities.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { ActivitiesService } from '../../../src/activities/activities.service';
 
 describe('ActivitiesService', () => {
   let service: ActivitiesService;

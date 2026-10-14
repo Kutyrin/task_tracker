@@ -41,16 +41,16 @@ jest.mock('@prisma/client', () => {
   };
 });
 
-import { NotificationsService } from '../notifications/notifications.service';
-import { SortOrder, TaskSortBy } from './dto/task-query.dto';
+import { NotificationsService } from '../../../src/notifications/notifications.service';
+import { SortOrder, TaskSortBy } from '../../../src/tasks/dto/task-query.dto';
 import { NotFoundException } from '@nestjs/common';
-import { ActivitiesService } from '../activities/activities.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { RealtimeService } from '../realtime/realtime.service';
-import { TasksService } from './tasks.service';
-import { mapTask, taskRelations } from './task.mapper';
+import { ActivitiesService } from '../../../src/activities/activities.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { RealtimeService } from '../../../src/realtime/realtime.service';
+import { TasksService } from '../../../src/tasks/tasks.service';
+import { mapTask, taskRelations } from '../../../src/tasks/task.mapper';
 
-jest.mock('./task.mapper', () => ({
+jest.mock('../../../src/tasks/task.mapper', () => ({
   mapTask: jest.fn(),
   taskRelations: {},
 }));
