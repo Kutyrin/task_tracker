@@ -652,7 +652,7 @@ Both commands print statements, branches, functions and lines percentages, inclu
 - **Backend:** Node.js 24, PostgreSQL 17, Prisma generation/migrations, unit tests, build, and API E2E tests.
 - **Frontend:** unit tests, ESLint, and production build.
 - **Docker:** Compose validation and application image builds.
-- **Frontend E2E:** enables the main Compose file's `e2e` profile and uses `backend/test/e2e.env`, pulls `postgres`, `uploads-init` and `mailpit` sequentially using `--policy missing`, with up to five attempts per service and 15/30/60/120-second retry delays. Builds application images separately, starts with `--no-build --pull never`, then runs Chromium tests and uploads the Playwright report. Cleanup removes the test project volumes.
+- **Frontend E2E:** enables the main Compose file's `e2e` profile and uses `backend/test/e2e.env`. It resolves the images for `postgres`, `uploads-init` and `mailpit` from Compose and pulls them sequentially, reusing local images. If ECR Public fails, `.github/scripts/pull-image.sh` tries the same official image tag on Docker Hub and tags it with the name expected by Compose. GHCR images are retried without registry substitution. There are up to five rounds with 15/30/60/120-second delays; both public registries can impose limits. The Docker build job also uses this helper for its Node pre-pull. Application images are built separately, the stack starts with `--no-build --pull never`, then Chromium tests run and upload the Playwright report. Cleanup removes the test project volumes.
 - **Publish:** after all checks pass on a push to `main`, publishes backend/frontend images to GHCR with commit-SHA and `latest` tags using Buildx and GitHub Actions cache. A successful CI run triggers the production release flow described above.
 
 ## Security and Implementation Notes
@@ -667,5 +667,7 @@ Both commands print statements, branches, functions and lines percentages, inclu
 - Production secrets are stored outside the repository in `.env.production`.
 
 ## Remaining Work
+
 `
+
 - Basic production monitoring and centralized log collection.

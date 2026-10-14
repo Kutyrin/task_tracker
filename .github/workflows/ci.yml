@@ -134,22 +134,11 @@ jobs:
       - name: Validate Compose configuration
         run: docker compose config
 
-      - name: Pre-pull Node base image with backoff
-        run: |
-          set -euo pipefail
-          image=public.ecr.aws/docker/library/node:24-bookworm-slim
-          for attempt in 1 2 3 4 5; do
-            if docker pull "$image"; then
-              break
-            fi
-            if [ "$attempt" -eq 5 ]; then
-              echo "::error::Failed to pull Node base image after $attempt attempts"
-              exit 1
-            fi
-            delay=$((10 * (2 ** (attempt - 1))))
-            echo "Node pull failed; retrying in ${delay}s"
-            sleep "$delay"
-          done
+      - name: Test registry fallback
+        run: node --test backend/test/ci/pull-image.test.cjs
+
+      - name: Pre-pull Node base image with registry fallback
+        run: bash .github/scripts/pull-image.sh public.ecr.aws/docker/library/node:24-bookworm-slim
 
       - name: Build Docker images
         run: |
@@ -199,25 +188,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Pull Compose dependencies with backoff
+      - name: Pull Compose dependencies with registry fallback
         working-directory: .
         run: |
           set -euo pipefail
-          # ECR Public throttles anonymous pulls; avoid concurrent service pulls.
           for service in postgres uploads-init mailpit; do
-            for attempt in 1 2 3 4 5; do
-              if docker compose pull --policy missing "$service"; then
-                break
-              fi
-              if [ "$attempt" -eq 5 ]; then
-                echo "::error::Failed to pull $service after $attempt attempts"
-                exit 1
-              fi
-              delay=$((15 * (2 ** (attempt - 1))))
-              echo "Pull failed for $service; retrying in ${delay}s"
-              sleep "$delay"
-            done
-            sleep 2
+            image=$(docker compose config --images "$service")
+            test -n "$image"
+            bash .github/scripts/pull-image.sh "$image"
           done
 
       - name: Build E2E images
