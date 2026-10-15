@@ -1,4 +1,5 @@
 'use client';
+import { Button } from '@/components/ui/button';
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -43,7 +44,7 @@ function TaskContent({ taskId }: { taskId: number }) {
     return (
       <main className="min-h-screen px-6 py-12">
         <div className="mx-auto max-w-4xl">
-          <p className="text-sm text-slate-500">Loading issue...</p>
+          <p className="text-sm text-muted-foreground">Loading issue...</p>
         </div>
       </main>
     );
@@ -53,19 +54,16 @@ function TaskContent({ taskId }: { taskId: number }) {
     return (
       <main className="min-h-screen px-6 py-12">
         <div className="mx-auto max-w-4xl">
-          <Link
-            href="/projects"
-            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-          >
-            Back to projects
-          </Link>
+          <Button asChild variant="outline">
+            <Link href="/projects">Back to projects</Link>
+          </Button>
 
-          <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-6">
-            <h1 className="text-lg font-semibold text-red-900">
+          <div className="mt-8 rounded-2xl border border-destructive/25 bg-destructive/10 p-6">
+            <h1 className="text-lg font-semibold text-destructive">
               Issue not found
             </h1>
 
-            <p className="mt-2 text-sm text-red-700">
+            <p className="mt-2 text-sm text-destructive">
               The issue may not exist or you may not have access to it.
             </p>
           </div>
@@ -96,43 +94,37 @@ function TaskContent({ taskId }: { taskId: number }) {
       <div className="mx-auto max-w-4xl">
         <div className="flex flex-wrap gap-3">
           {task.projectId && (
-            <Link
-              href={`/projects/${task.projectId}`}
-              className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-            >
-              Back to Project
-            </Link>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${task.projectId}`}>Back to Project</Link>
+            </Button>
           )}
 
-          <Link
-            href="/dashboard"
-            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-          >
-            Back to Dashboard
-          </Link>
+          <Button asChild variant="outline">
+            <Link href="/dashboard">Back to Dashboard</Link>
+          </Button>
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <button
+          <Button
+            variant="default"
             type="button"
             onClick={() => setIsEditing((value) => !value)}
-            className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
           >
             {isEditing ? 'Close edit' : 'Edit issue'}
-          </button>
+          </Button>
 
-          <button
+          <Button
+            variant="destructive"
             type="button"
             onClick={handleDelete}
             disabled={deleteTaskMutation.isPending}
-            className="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {deleteTaskMutation.isPending ? 'Deleting...' : 'Delete issue'}
-          </button>
+          </Button>
         </div>
 
         {deleteTaskMutation.isError && (
-          <p className="mt-3 text-sm text-red-600">Failed to delete issue.</p>
+          <p className="mt-3 text-sm text-destructive">Failed to delete issue.</p>
         )}
 
         <div className="mt-6">
@@ -170,7 +162,7 @@ export default function TaskPage() {
       <ProtectedRoute>
         <main className="min-h-screen px-6 py-12">
           <div className="mx-auto max-w-4xl">
-            <p className="text-sm text-red-600">Invalid issue ID.</p>
+            <p className="text-sm text-destructive">Invalid issue ID.</p>
           </div>
         </main>
       </ProtectedRoute>

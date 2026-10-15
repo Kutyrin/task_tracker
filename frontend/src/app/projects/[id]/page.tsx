@@ -1,4 +1,7 @@
 'use client';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -38,7 +41,7 @@ function ProjectContent({ projectId }: { projectId: number }) {
     return (
       <main className="min-h-screen px-6 py-12">
         <div className="mx-auto max-w-4xl">
-          <p className="text-sm text-slate-500">Loading project...</p>
+          <p className="text-sm text-muted-foreground">Loading project...</p>
         </div>
       </main>
     );
@@ -48,19 +51,16 @@ function ProjectContent({ projectId }: { projectId: number }) {
     return (
       <main className="min-h-screen px-6 py-12">
         <div className="mx-auto max-w-4xl">
-          <Link
-            href="/projects"
-            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-          >
-            Back to projects
-          </Link>
+          <Button asChild variant="outline">
+            <Link href="/projects">Back to projects</Link>
+          </Button>
 
-          <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-6">
-            <h1 className="text-lg font-semibold text-red-900">
+          <div className="mt-8 rounded-2xl border border-destructive/25 bg-destructive/10 p-6">
+            <h1 className="text-lg font-semibold text-destructive">
               Project not found
             </h1>
 
-            <p className="mt-2 text-sm text-red-700">
+            <p className="mt-2 text-sm text-destructive">
               The project may not exist or you may not have access to it.
             </p>
           </div>
@@ -89,190 +89,203 @@ function ProjectContent({ projectId }: { projectId: number }) {
   return (
     <main className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-4xl">
-        <Link
-          href="/projects"
-          className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-        >
-          Back to projects
-        </Link>
+        <Button asChild variant="outline">
+          <Link href="/projects">Back to projects</Link>
+        </Button>
         <div className="mt-6">
           <div className="flex items-start justify-between gap-6">
             <div>
-              <p className="text-sm font-semibold tracking-wide text-slate-500">
+              <p className="text-sm font-semibold tracking-wide text-muted-foreground">
                 {project.key}
               </p>
 
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
                 {project.name}
               </h1>
 
-              <p className="mt-2 text-slate-600">
+              <p className="mt-2 text-muted-foreground">
                 {project.description || 'No project description.'}
               </p>
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
-                {project.role}
-              </span>
+              <Badge variant="secondary">{project.role}</Badge>
 
               {project.role === 'OWNER' && (
-                <button
+                <Button
+                  variant="destructive"
                   type="button"
                   onClick={handleDeleteProject}
                   disabled={deleteProjectMutation.isPending}
-                  className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {deleteProjectMutation.isPending
                     ? 'Deleting...'
                     : 'Delete project'}
-                </button>
+                </Button>
               )}
             </div>
           </div>
         </div>
         <div className="mt-8 grid gap-5 sm:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Tasks</p>
+          <Card asChild>
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <p className="text-sm text-muted-foreground">Tasks</p>
 
-            <p className="mt-2 text-3xl font-semibold text-slate-950">
-              {project.taskCount}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Members</p>
-
-            <p className="mt-2 text-3xl font-semibold text-slate-950">
-              {project.memberCount}
-            </p>
-          </div>
-        </div>
-        <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">
-            Project information
-          </h2>
-
-          <dl className="mt-5 grid gap-5 sm:grid-cols-2">
-            <div>
-              <dt className="text-sm text-slate-500">Project ID</dt>
-              <dd className="mt-1 font-medium text-slate-950">{project.id}</dd>
-            </div>
-
-            <div>
-              <dt className="text-sm text-slate-500">Owner ID</dt>
-              <dd className="mt-1 font-medium text-slate-950">
-                {project.ownerId}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-sm text-slate-500">Your role</dt>
-              <dd className="mt-1 font-medium text-slate-950">
-                {project.role}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-sm text-slate-500">Created</dt>
-              <dd className="mt-1 font-medium text-slate-950">
-                {new Date(project.createdAt).toLocaleDateString()}
-              </dd>
-            </div>
-          </dl>
-        </div>
-        {/* Members */}
-        <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-950">Members</h2>
-
-              <p className="mt-1 text-sm text-slate-600">
-                People who have access to this project.
+              <p className="mt-2 text-3xl font-semibold text-foreground">
+                {project.taskCount}
               </p>
             </div>
+          </Card>
 
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-              {project.memberCount}
-            </span>
-          </div>
+          <Card asChild>
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <p className="text-sm text-muted-foreground">Members</p>
 
-          <div className="mt-5">
-            {isMembersPending && (
-              <p className="text-sm text-slate-500">Loading members...</p>
-            )}
-
-            {isMembersError && (
-              <p className="text-sm text-red-600">Failed to load members.</p>
-            )}
-
-            {members && members.length === 0 && (
-              <p className="text-sm text-slate-500">No members found.</p>
-            )}
-
-            {members && members.length > 0 && (
-              <ProjectMembers
-                projectId={projectId}
-                currentRole={project.role}
-                members={members}
-              />
-            )}
-
-            {(project.role === 'OWNER' || project.role === 'ADMIN') && (
-              <AddProjectMemberForm
-                projectId={projectId}
-                currentRole={project.role}
-              />
-            )}
-          </div>
+              <p className="mt-2 text-3xl font-semibold text-foreground">
+                {project.memberCount}
+              </p>
+            </div>
+          </Card>
         </div>
+        <Card asChild>
+          <div className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-foreground">
+              Project information
+            </h2>
+
+            <dl className="mt-5 grid gap-5 sm:grid-cols-2">
+              <div>
+                <dt className="text-sm text-muted-foreground">Project ID</dt>
+                <dd className="mt-1 font-medium text-foreground">
+                  {project.id}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-sm text-muted-foreground">Owner ID</dt>
+                <dd className="mt-1 font-medium text-foreground">
+                  {project.ownerId}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-sm text-muted-foreground">Your role</dt>
+                <dd className="mt-1 font-medium text-foreground">
+                  {project.role}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-sm text-muted-foreground">Created</dt>
+                <dd className="mt-1 font-medium text-foreground">
+                  {new Date(project.createdAt).toLocaleDateString()}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </Card>
+        {/* Members */}
+        <Card asChild>
+          <div className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Members
+                </h2>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  People who have access to this project.
+                </p>
+              </div>
+
+              <Badge variant="secondary">{project.memberCount}</Badge>
+            </div>
+
+            <div className="mt-5">
+              {isMembersPending && (
+                <p className="text-sm text-muted-foreground">
+                  Loading members...
+                </p>
+              )}
+
+              {isMembersError && (
+                <p className="text-sm text-destructive">Failed to load members.</p>
+              )}
+
+              {members && members.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No members found.
+                </p>
+              )}
+
+              {members && members.length > 0 && (
+                <ProjectMembers
+                  projectId={projectId}
+                  currentRole={project.role}
+                  members={members}
+                />
+              )}
+
+              {(project.role === 'OWNER' || project.role === 'ADMIN') && (
+                <AddProjectMemberForm
+                  projectId={projectId}
+                  currentRole={project.role}
+                />
+              )}
+            </div>
+          </div>
+        </Card>
         {/* Labels */}
         {(project.role === 'OWNER' || project.role === 'ADMIN') && (
           <ProjectLabels projectId={projectId} />
         )}
         {/* Boards */}
-        <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-950">Boards</h2>
+        <Card asChild>
+          <div className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Boards
+                </h2>
 
-              <p className="mt-1 text-sm text-slate-600">
-                Kanban boards for this project.
-              </p>
-            </div>
-
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-              {boards?.length ?? 0}
-            </span>
-          </div>
-
-          <div className="mt-5">
-            {isBoardsPending && (
-              <p className="text-sm text-slate-500">Loading boards...</p>
-            )}
-
-            {isBoardsError && (
-              <p className="text-sm text-red-600">Failed to load boards.</p>
-            )}
-
-            {boards && boards.length === 0 && (
-              <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center">
-                <h3 className="text-sm font-semibold text-slate-950">
-                  No boards yet
-                </h3>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Create a board to start organizing issues.
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Kanban boards for this project.
                 </p>
               </div>
-            )}
 
-            {boards && boards.length > 0 && <ProjectBoards boards={boards} />}
-            {(project.role === 'OWNER' || project.role === 'ADMIN') && (
-              <CreateBoardForm projectId={projectId} />
-            )}
+              <Badge variant="secondary">{boards?.length ?? 0}</Badge>
+            </div>
+
+            <div className="mt-5">
+              {isBoardsPending && (
+                <p className="text-sm text-muted-foreground">
+                  Loading boards...
+                </p>
+              )}
+
+              {isBoardsError && (
+                <p className="text-sm text-destructive">Failed to load boards.</p>
+              )}
+
+              {boards && boards.length === 0 && (
+                <div className="rounded-xl border border-dashed border-input p-8 text-center">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    No boards yet
+                  </h3>
+
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Create a board to start organizing issues.
+                  </p>
+                </div>
+              )}
+
+              {boards && boards.length > 0 && <ProjectBoards boards={boards} />}
+              {(project.role === 'OWNER' || project.role === 'ADMIN') && (
+                <CreateBoardForm projectId={projectId} />
+              )}
+            </div>
           </div>
-        </div>
+        </Card>
         {/* Project activity */}
         <div>
           <ProjectActivitySection projectId={projectId} />
@@ -291,7 +304,7 @@ export default function ProjectPage() {
       <ProtectedRoute>
         <main className="min-h-screen px-6 py-12">
           <div className="mx-auto max-w-4xl">
-            <p className="text-sm text-red-600">Invalid project ID.</p>
+            <p className="text-sm text-destructive">Invalid project ID.</p>
           </div>
         </main>
       </ProtectedRoute>

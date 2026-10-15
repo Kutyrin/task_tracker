@@ -1,4 +1,7 @@
 'use client';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 import { useState } from 'react';
 import { z } from 'zod';
@@ -105,121 +108,125 @@ export function BoardColumnManager({
   };
 
   return (
-    <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-950">
-          Column management
-        </h2>
+    <Card asChild>
+      <div className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">
+            Column management
+          </h2>
 
-        <p className="mt-1 text-sm text-slate-600">
-          Create, rename, or delete board columns.
-        </p>
-      </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Create, rename, or delete board columns.
+          </p>
+        </div>
 
-      <form
-        onSubmit={handleCreate}
-        className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row"
-      >
-        <input
-          value={newColumnName}
-          onChange={(event) => setNewColumnName(event.target.value)}
-          type="text"
-          autoComplete="off"
-          placeholder="New column"
-          className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-        />
-
-        <button
-          type="submit"
-          disabled={createColumnMutation.isPending}
-          className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+        <form
+          onSubmit={handleCreate}
+          className="mt-6 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row"
         >
-          {createColumnMutation.isPending ? 'Creating...' : 'Create column'}
-        </button>
-      </form>
+          <Input
+            value={newColumnName}
+            onChange={(event) => setNewColumnName(event.target.value)}
+            type="text"
+            autoComplete="off"
+            placeholder="New column"
+            className="flex-1"
+          />
 
-      {createColumnMutation.isError && (
-        <p className="mt-2 text-sm text-red-600">Failed to create column.</p>
-      )}
+          <Button
+            variant="default"
+            type="submit"
+            disabled={createColumnMutation.isPending}
+          >
+            {createColumnMutation.isPending ? 'Creating...' : 'Create column'}
+          </Button>
+        </form>
 
-      <div className="mt-6 space-y-3">
-        {orderedColumns.map((column) => {
-          const isEditing = editingColumnId === column.id;
+        {createColumnMutation.isError && (
+          <p className="mt-2 text-sm text-destructive">Failed to create column.</p>
+        )}
 
-          return (
-            <div
-              key={column.id}
-              className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              {isEditing ? (
-                <input
-                  value={editingColumnName}
-                  onChange={(event) => setEditingColumnName(event.target.value)}
-                  type="text"
-                  autoFocus
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                />
-              ) : (
-                <div>
-                  <p className="font-medium text-slate-950">{column.name}</p>
+        <div className="mt-6 space-y-3">
+          {orderedColumns.map((column) => {
+            const isEditing = editingColumnId === column.id;
 
-                  <p className="mt-1 text-sm text-slate-500">
-                    {column._count.tasks} tasks
-                  </p>
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-2">
+            return (
+              <div
+                key={column.id}
+                className="flex flex-col gap-3 rounded-xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
                 {isEditing ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => handleUpdate(column.id)}
-                      disabled={updateColumnMutation.isPending}
-                      className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {updateColumnMutation.isPending ? 'Saving...' : 'Save'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={cancelEditing}
-                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-                    >
-                      Cancel
-                    </button>
-                  </>
+                  <Input
+                    value={editingColumnName}
+                    onChange={(event) =>
+                      setEditingColumnName(event.target.value)
+                    }
+                    type="text"
+                    autoFocus
+                    className="flex-1"
+                  />
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => startEditing(column)}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-                  >
-                    Rename
-                  </button>
+                  <div>
+                    <p className="font-medium text-foreground">{column.name}</p>
+
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {column._count.tasks} tasks
+                    </p>
+                  </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => handleDelete(column)}
-                  disabled={deleteColumnMutation.isPending}
-                  className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {deleteColumnMutation.isPending ? 'Deleting...' : 'Delete'}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  {isEditing ? (
+                    <>
+                      <Button
+                        variant="default"
+                        type="button"
+                        onClick={() => handleUpdate(column.id)}
+                        disabled={updateColumnMutation.isPending}
+                      >
+                        {updateColumnMutation.isPending ? 'Saving...' : 'Save'}
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={cancelEditing}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => startEditing(column)}
+                    >
+                      Rename
+                    </Button>
+                  )}
+
+                  <Button
+                    variant="destructive"
+                    type="button"
+                    onClick={() => handleDelete(column)}
+                    disabled={deleteColumnMutation.isPending}
+                  >
+                    {deleteColumnMutation.isPending ? 'Deleting...' : 'Delete'}
+                  </Button>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {updateColumnMutation.isError && (
+          <p className="mt-2 text-sm text-destructive">Failed to update column.</p>
+        )}
+
+        {deleteColumnMutation.isError && (
+          <p className="mt-2 text-sm text-destructive">Failed to delete column.</p>
+        )}
       </div>
-
-      {updateColumnMutation.isError && (
-        <p className="mt-2 text-sm text-red-600">Failed to update column.</p>
-      )}
-
-      {deleteColumnMutation.isError && (
-        <p className="mt-2 text-sm text-red-600">Failed to delete column.</p>
-      )}
-    </div>
+    </Card>
   );
 }

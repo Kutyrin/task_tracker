@@ -1,4 +1,10 @@
 'use client';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Button } from '@/components/ui/button';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -80,156 +86,152 @@ export function EditTaskForm({
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-950">Edit issue</h2>
+    <Card asChild>
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-foreground">Edit issue</h2>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
-        <div>
-          <label
-            htmlFor="edit-task-title"
-            className="text-sm font-medium text-slate-700"
-          >
-            Title
-          </label>
-
-          <input
-            id="edit-task-title"
-            {...register('title')}
-            type="text"
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-          />
-
-          {errors.title && (
-            <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>
-          )}
-        </div>
-
-        <div>
-          <label
-            htmlFor="edit-task-description"
-            className="text-sm font-medium text-slate-700"
-          >
-            Description
-          </label>
-
-          <textarea
-            id="edit-task-description"
-            {...register('description')}
-            rows={6}
-            className="mt-2 w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-          />
-
-          {errors.description && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.description.message}
-            </p>
-          )}
-        </div>
-
-        <div className="grid gap-5 sm:grid-cols-2">
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
           <div>
-            <label
-              htmlFor="edit-task-type"
-              className="text-sm font-medium text-slate-700"
+            <Label
+              htmlFor="edit-task-title"
+              className="text-sm font-medium text-foreground"
             >
-              Issue type
-            </label>
+              Title
+            </Label>
 
-            <select
-              id="edit-task-type"
-              {...register('issueType')}
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-            >
-              <option value="TASK">Task</option>
-              <option value="BUG">Bug</option>
-              <option value="STORY">Story</option>
-              <option value="EPIC">Epic</option>
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="edit-task-priority"
-              className="text-sm font-medium text-slate-700"
-            >
-              Priority
-            </label>
-
-            <select
-              id="edit-task-priority"
-              {...register('priority')}
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-            >
-              <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="edit-task-assignee"
-              className="text-sm font-medium text-slate-700"
-            >
-              Assignee
-            </label>
-
-            <select
-              id="edit-task-assignee"
-              {...register('assigneeId', {
-                setValueAs: (value) => (value ? Number(value) : undefined),
-              })}
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-            >
-              <option value="">Unassigned</option>
-
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.email}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="edit-task-due-date"
-              className="text-sm font-medium text-slate-700"
-            >
-              Due date
-            </label>
-
-            <input
-              id="edit-task-due-date"
-              {...register('dueDate')}
-              type="date"
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
+            <Input
+              id="edit-task-title"
+              {...register('title')}
+              type="text"
+              className="mt-2 w-full"
             />
+
+            {errors.title && (
+              <p className="mt-1 text-sm text-destructive">
+                {errors.title.message}
+              </p>
+            )}
           </div>
-        </div>
 
-        {updateTaskMutation.isError && (
-          <p className="text-sm text-red-600">Failed to update issue.</p>
-        )}
+          <div>
+            <Label
+              htmlFor="edit-task-description"
+              className="text-sm font-medium text-foreground"
+            >
+              Description
+            </Label>
 
-        <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting ? 'Saving...' : 'Save changes'}
-          </button>
+            <Textarea
+              id="edit-task-description"
+              {...register('description')}
+              rows={6}
+              className="mt-2 w-full"
+            />
 
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
+            {errors.description && (
+              <p className="mt-1 text-sm text-destructive">
+                {errors.description.message}
+              </p>
+            )}
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <Label
+                htmlFor="edit-task-type"
+                className="text-sm font-medium text-foreground"
+              >
+                Issue type
+              </Label>
+
+              <NativeSelect
+                id="edit-task-type"
+                {...register('issueType')}
+                className="mt-2 w-full"
+              >
+                <option value="TASK">Task</option>
+                <option value="BUG">Bug</option>
+                <option value="STORY">Story</option>
+                <option value="EPIC">Epic</option>
+              </NativeSelect>
+            </div>
+
+            <div>
+              <Label
+                htmlFor="edit-task-priority"
+                className="text-sm font-medium text-foreground"
+              >
+                Priority
+              </Label>
+
+              <NativeSelect
+                id="edit-task-priority"
+                {...register('priority')}
+                className="mt-2 w-full"
+              >
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+              </NativeSelect>
+            </div>
+
+            <div>
+              <Label
+                htmlFor="edit-task-assignee"
+                className="text-sm font-medium text-foreground"
+              >
+                Assignee
+              </Label>
+
+              <NativeSelect
+                id="edit-task-assignee"
+                {...register('assigneeId', {
+                  setValueAs: (value) => (value ? Number(value) : undefined),
+                })}
+                className="mt-2 w-full"
+              >
+                <option value="">Unassigned</option>
+
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.email}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+
+            <div>
+              <Label
+                htmlFor="edit-task-due-date"
+                className="text-sm font-medium text-foreground"
+              >
+                Due date
+              </Label>
+
+              <Input
+                id="edit-task-due-date"
+                {...register('dueDate')}
+                type="date"
+                className="mt-2 w-full"
+              />
+            </div>
+          </div>
+
+          {updateTaskMutation.isError && (
+            <p className="text-sm text-destructive">Failed to update issue.</p>
+          )}
+
+          <div className="flex gap-3">
+            <Button variant="default" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : 'Save changes'}
+            </Button>
+
+            <Button variant="outline" type="button" onClick={onCancel}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </div>
+    </Card>
   );
 }

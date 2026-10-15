@@ -1,4 +1,7 @@
 'use client';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Card } from '@/components/ui/card';
 
 import { useState } from 'react';
 
@@ -54,14 +57,14 @@ function CommentItem({
   };
 
   return (
-    <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <article className="rounded-xl border border-border bg-muted/40 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-slate-950">
+          <p className="text-sm font-medium text-foreground">
             {comment.user.email}
           </p>
 
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             {formatCommentDate(comment.createdAt)}
             {comment.updatedAt !== comment.createdAt && ' · Edited'}
           </p>
@@ -70,35 +73,37 @@ function CommentItem({
         {(isAuthor || canDelete) && (
           <div className="flex gap-2">
             {isAuthor && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 type="button"
                 onClick={() => onEdit(comment)}
-                className="text-xs font-medium text-slate-600 transition hover:text-slate-950"
               >
                 Edit
-              </button>
+              </Button>
             )}
 
             {canDelete && (
-              <button
+              <Button
+                variant="destructive"
+                size="sm"
                 type="button"
                 onClick={handleDelete}
                 disabled={deleteCommentMutation.isPending}
-                className="text-xs font-medium text-red-600 transition hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {deleteCommentMutation.isPending ? 'Deleting...' : 'Delete'}
-              </button>
+              </Button>
             )}
           </div>
         )}
       </div>
 
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-foreground">
         {comment.content}
       </p>
 
       {deleteCommentMutation.isError && (
-        <p className="mt-2 text-xs text-red-600">Failed to delete comment.</p>
+        <p className="mt-2 text-xs text-destructive">Failed to delete comment.</p>
       )}
     </article>
   );
@@ -137,45 +142,38 @@ function EditCommentForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+      className="rounded-xl border border-border bg-muted/40 p-4"
     >
-      <textarea
+      <Textarea
         value={content}
         onChange={(event) => setContent(event.target.value)}
         maxLength={5000}
         rows={4}
-        className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-slate-900"
+        className="w-full"
       />
 
       <div className="mt-3 flex flex-wrap gap-3">
-        <button
+        <Button
+          variant="default"
           type="submit"
           disabled={updateCommentMutation.isPending || !content.trim()}
-          className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {updateCommentMutation.isPending ? 'Saving...' : 'Save'}
-        </button>
+        </Button>
 
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-        >
+        <Button variant="outline" type="button" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
 
       {updateCommentMutation.isError && (
-        <p className="mt-2 text-sm text-red-600">Failed to update comment.</p>
+        <p className="mt-2 text-sm text-destructive">Failed to update comment.</p>
       )}
     </form>
   );
 }
 
-export function CommentsSection({
-  taskId,
-  members,
-}: CommentsSectionProps) {
+export function CommentsSection({ taskId, members }: CommentsSectionProps) {
   const currentUser = useAppSelector((state) => state.auth.user);
 
   const { data: comments, isPending, isError } = useComments(taskId);
@@ -211,75 +209,79 @@ export function CommentsSection({
   };
 
   return (
-    <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-950">Comments</h2>
+    <Card asChild>
+      <section className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Comments</h2>
 
-        <p className="mt-1 text-sm text-slate-500">
-          Discuss the issue with your project members.
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="mt-5">
-        <textarea
-          value={content}
-          onChange={(event) => setContent(event.target.value)}
-          maxLength={5000}
-          rows={4}
-          placeholder="Write a comment..."
-          className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-900"
-        />
-
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <span className="text-xs text-slate-400">{content.length}/5000</span>
-
-          <button
-            type="submit"
-            disabled={createCommentMutation.isPending || !content.trim()}
-            className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {createCommentMutation.isPending ? 'Posting...' : 'Add comment'}
-          </button>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Discuss the issue with your project members.
+          </p>
         </div>
 
-        {createCommentMutation.isError && (
-          <p className="mt-2 text-sm text-red-600">Failed to add comment.</p>
-        )}
-      </form>
+        <form onSubmit={handleSubmit} className="mt-5">
+          <Textarea
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            maxLength={5000}
+            rows={4}
+            placeholder="Write a comment..."
+            className="w-full"
+          />
 
-      <div className="mt-6 space-y-3">
-        {isPending && (
-          <p className="text-sm text-slate-500">Loading comments...</p>
-        )}
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <span className="text-xs text-muted-foreground">
+              {content.length}/5000
+            </span>
 
-        {isError && (
-          <p className="text-sm text-red-600">Failed to load comments.</p>
-        )}
+            <Button
+              variant="default"
+              type="submit"
+              disabled={createCommentMutation.isPending || !content.trim()}
+            >
+              {createCommentMutation.isPending ? 'Posting...' : 'Add comment'}
+            </Button>
+          </div>
 
-        {!isPending && !isError && comments?.length === 0 && (
-          <p className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">
-            No comments yet.
-          </p>
-        )}
+          {createCommentMutation.isError && (
+            <p className="mt-2 text-sm text-destructive">Failed to add comment.</p>
+          )}
+        </form>
 
-        {comments?.map((comment) =>
-          editingCommentId === comment.id ? (
-            <EditCommentForm
-              key={comment.id}
-              comment={comment}
-              onCancel={() => setEditingCommentId(null)}
-            />
-          ) : (
-            <CommentItem
-              key={comment.id}
-              comment={comment}
-              currentUserId={currentUser?.userId ?? null}
-              currentUserRole={currentUserRole}
-              onEdit={() => setEditingCommentId(comment.id)}
-            />
-          ),
-        )}
-      </div>
-    </section>
+        <div className="mt-6 space-y-3">
+          {isPending && (
+            <p className="text-sm text-muted-foreground">Loading comments...</p>
+          )}
+
+          {isError && (
+            <p className="text-sm text-destructive">Failed to load comments.</p>
+          )}
+
+          {!isPending && !isError && comments?.length === 0 && (
+            <p className="rounded-xl border border-dashed border-input px-4 py-6 text-center text-sm text-muted-foreground">
+              No comments yet.
+            </p>
+          )}
+
+          {comments?.map((comment) =>
+            editingCommentId === comment.id ? (
+              <EditCommentForm
+                key={comment.id}
+                comment={comment}
+                onCancel={() => setEditingCommentId(null)}
+              />
+            ) : (
+              <CommentItem
+                key={comment.id}
+                comment={comment}
+                currentUserId={currentUser?.userId ?? null}
+                currentUserRole={currentUserRole}
+                onEdit={() => setEditingCommentId(comment.id)}
+              />
+            ),
+          )}
+        </div>
+      </section>
+    </Card>
   );
 }

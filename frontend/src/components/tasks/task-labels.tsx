@@ -1,4 +1,7 @@
 'use client';
+import { Button } from '@/components/ui/button';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Badge } from '@/components/ui/badge';
 
 import { useMemo, useState } from 'react';
 
@@ -65,16 +68,16 @@ export function TaskLabels({
   return (
     <div className="mt-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-slate-950">Labels</h2>
+        <h2 className="text-sm font-semibold text-foreground">Labels</h2>
 
         {projectId && (
-          <button
+          <Button
+            variant="ghost"
             type="button"
             onClick={() => setIsEditing((value) => !value)}
-            className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
           >
             {isEditing ? 'Done' : 'Edit labels'}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -82,13 +85,13 @@ export function TaskLabels({
         <div className="mt-3 flex flex-wrap gap-2">
           {availableLabels.length > 0 ? (
             <>
-              <select
+              <NativeSelect
                 value={selectedLabelId}
                 onChange={(event) => setSelectedLabelId(event.target.value)}
                 disabled={
                   isProjectLabelsPending || assignLabelMutation.isPending
                 }
-                className="min-w-52 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                className="min-w-52"
               >
                 <option value="">Select a label</option>
 
@@ -97,19 +100,19 @@ export function TaskLabels({
                     {label.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
 
-              <button
+              <Button
+                variant="default"
                 type="button"
                 onClick={() => void handleAssign()}
                 disabled={!selectedLabelId || assignLabelMutation.isPending}
-                className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {assignLabelMutation.isPending ? 'Adding...' : 'Add'}
-              </button>
+              </Button>
             </>
           ) : (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               No more project labels to add.
             </p>
           )}
@@ -117,17 +120,17 @@ export function TaskLabels({
       )}
 
       {isTaskLabelsPending && (
-        <p className="mt-3 text-sm text-slate-500">Loading labels...</p>
+        <p className="mt-3 text-sm text-muted-foreground">Loading labels...</p>
       )}
 
       {isTaskLabelsError && (
-        <p className="mt-3 text-sm text-red-600">Failed to load task labels.</p>
+        <p className="mt-3 text-sm text-destructive">Failed to load task labels.</p>
       )}
 
       {!isTaskLabelsPending && !isTaskLabelsError && (
         <>
           {labels.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500">No labels.</p>
+            <p className="mt-3 text-sm text-muted-foreground">No labels.</p>
           ) : (
             <div className="mt-3 flex flex-wrap gap-2">
               {labels.map((label) => (
@@ -144,13 +147,13 @@ export function TaskLabels({
       )}
 
       {isProjectLabelsError && (
-        <p className="mt-2 text-sm text-red-600">
+        <p className="mt-2 text-sm text-destructive">
           Failed to load project labels.
         </p>
       )}
 
       {assignLabelMutation.isError && (
-        <p className="mt-2 text-sm text-red-600">Failed to add label.</p>
+        <p className="mt-2 text-sm text-destructive">Failed to add label.</p>
       )}
     </div>
   );
@@ -176,19 +179,19 @@ function TaskLabelItem({
   };
 
   return (
-    <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
+    <Badge variant="secondary">
       <span>{label.name}</span>
 
       {isEditing && (
-        <button
+        <Button
+          variant="destructive"
           type="button"
           onClick={() => void handleRemove()}
           disabled={removeLabelMutation.isPending}
-          className="font-medium text-slate-500 underline decoration-transparent underline-offset-2 transition hover:text-red-600 hover:decoration-current disabled:cursor-not-allowed disabled:opacity-50"
         >
           {removeLabelMutation.isPending ? 'Removing...' : 'Remove'}
-        </button>
+        </Button>
       )}
-    </span>
+    </Badge>
   );
 }

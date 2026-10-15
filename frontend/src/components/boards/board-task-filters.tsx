@@ -1,4 +1,9 @@
 'use client';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Button } from '@/components/ui/button';
 
 import type { Task, TaskSortBy, SortOrder } from '@/lib/tasks';
 
@@ -99,230 +104,228 @@ export function BoardTaskFilters({
     labelId !== null;
 
   return (
-    <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-10">
-        <div className="xl:col-span-2">
-          <label
-            htmlFor="board-task-search"
-            className="mb-1.5 block text-xs font-medium text-slate-600"
-          >
-            Search
-          </label>
+    <Card asChild>
+      <div className="mt-8 rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <Label
+              htmlFor="board-task-search"
+              className="mb-1.5 block text-xs font-medium text-muted-foreground"
+            >
+              Search
+            </Label>
 
-          <input
-            id="board-task-search"
-            type="search"
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Issue key, title or description"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500"
-          />
+            <Input
+              id="board-task-search"
+              type="search"
+              value={search}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder="Issue key, title or description"
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <Label
+              htmlFor="board-task-status"
+              className="mb-1.5 block text-xs font-medium text-muted-foreground"
+            >
+              Status
+            </Label>
+
+            <NativeSelect
+              id="board-task-status"
+              value={columnId ?? 'ALL'}
+              onChange={(event) => {
+                onColumnChange(
+                  event.target.value === 'ALL'
+                    ? null
+                    : Number(event.target.value),
+                );
+              }}
+              className="w-full"
+            >
+              <option value="ALL">All statuses</option>
+
+              {columns.map((column) => (
+                <option key={column.id} value={column.id}>
+                  {column.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          <div>
+            <Label
+              htmlFor="board-task-type"
+              className="mb-1.5 block text-xs font-medium text-muted-foreground"
+            >
+              Issue type
+            </Label>
+
+            <NativeSelect
+              id="board-task-type"
+              value={issueType}
+              onChange={(event) =>
+                onIssueTypeChange(event.target.value as IssueTypeFilter)
+              }
+              className="w-full"
+            >
+              <option value="ALL">All types</option>
+
+              {issueTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          <div>
+            <Label
+              htmlFor="board-task-priority"
+              className="mb-1.5 block text-xs font-medium text-muted-foreground"
+            >
+              Priority
+            </Label>
+
+            <NativeSelect
+              id="board-task-priority"
+              value={priority}
+              onChange={(event) =>
+                onPriorityChange(event.target.value as PriorityFilter)
+              }
+              className="w-full"
+            >
+              <option value="ALL">All priorities</option>
+
+              {priorityOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          <div>
+            <Label
+              htmlFor="board-task-assignee"
+              className="mb-1.5 block text-xs font-medium text-muted-foreground"
+            >
+              Assignee
+            </Label>
+
+            <NativeSelect
+              id="board-task-assignee"
+              value={assigneeId ?? 'ALL'}
+              onChange={(event) => {
+                const value = event.target.value;
+
+                onAssigneeChange(
+                  value === 'ALL'
+                    ? null
+                    : value === 'UNASSIGNED'
+                      ? 'UNASSIGNED'
+                      : Number(value),
+                );
+              }}
+              className="w-full"
+            >
+              <option value="ALL">All assignees</option>
+              <option value="UNASSIGNED">Unassigned</option>
+
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.email}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          <div>
+            <Label
+              htmlFor="board-task-label"
+              className="mb-1.5 block text-xs font-medium text-muted-foreground"
+            >
+              Label
+            </Label>
+
+            <NativeSelect
+              id="board-task-label"
+              value={labelId ?? 'ALL'}
+              onChange={(event) => {
+                onLabelChange(
+                  event.target.value === 'ALL'
+                    ? null
+                    : Number(event.target.value),
+                );
+              }}
+              className="w-full"
+            >
+              <option value="ALL">All labels</option>
+
+              {labels.map((label) => (
+                <option key={label.id} value={label.id}>
+                  {label.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          <div>
+            <Label
+              htmlFor="board-task-sort"
+              className="mb-1.5 block text-xs font-medium text-muted-foreground"
+            >
+              Sort by
+            </Label>
+
+            <NativeSelect
+              id="board-task-sort"
+              value={sortBy}
+              onChange={(event) =>
+                onSortByChange(event.target.value as TaskSortBy)
+              }
+              className="w-full"
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          <div>
+            <Label
+              htmlFor="board-task-sort-order"
+              className="mb-1.5 block text-xs font-medium text-muted-foreground"
+            >
+              Order
+            </Label>
+
+            <NativeSelect
+              id="board-task-sort-order"
+              value={sortOrder}
+              onChange={(event) =>
+                onSortOrderChange(event.target.value as SortOrder)
+              }
+              className="w-full"
+            >
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </NativeSelect>
+          </div>
         </div>
 
-        <div>
-          <label
-            htmlFor="board-task-status"
-            className="mb-1.5 block text-xs font-medium text-slate-600"
-          >
-            Status
-          </label>
-
-          <select
-            id="board-task-status"
-            value={columnId ?? 'ALL'}
-            onChange={(event) => {
-              onColumnChange(
-                event.target.value === 'ALL'
-                  ? null
-                  : Number(event.target.value),
-              );
-            }}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-          >
-            <option value="ALL">All statuses</option>
-
-            {columns.map((column) => (
-              <option key={column.id} value={column.id}>
-                {column.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label
-            htmlFor="board-task-type"
-            className="mb-1.5 block text-xs font-medium text-slate-600"
-          >
-            Issue type
-          </label>
-
-          <select
-            id="board-task-type"
-            value={issueType}
-            onChange={(event) =>
-              onIssueTypeChange(event.target.value as IssueTypeFilter)
-            }
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-          >
-            <option value="ALL">All types</option>
-
-            {issueTypeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label
-            htmlFor="board-task-priority"
-            className="mb-1.5 block text-xs font-medium text-slate-600"
-          >
-            Priority
-          </label>
-
-          <select
-            id="board-task-priority"
-            value={priority}
-            onChange={(event) =>
-              onPriorityChange(event.target.value as PriorityFilter)
-            }
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-          >
-            <option value="ALL">All priorities</option>
-
-            {priorityOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label
-            htmlFor="board-task-assignee"
-            className="mb-1.5 block text-xs font-medium text-slate-600"
-          >
-            Assignee
-          </label>
-
-          <select
-            id="board-task-assignee"
-            value={assigneeId ?? 'ALL'}
-            onChange={(event) => {
-              const value = event.target.value;
-
-              onAssigneeChange(
-                value === 'ALL'
-                  ? null
-                  : value === 'UNASSIGNED'
-                    ? 'UNASSIGNED'
-                    : Number(value),
-              );
-            }}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-          >
-            <option value="ALL">All assignees</option>
-            <option value="UNASSIGNED">Unassigned</option>
-
-            {members.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.email}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label
-            htmlFor="board-task-label"
-            className="mb-1.5 block text-xs font-medium text-slate-600"
-          >
-            Label
-          </label>
-
-          <select
-            id="board-task-label"
-            value={labelId ?? 'ALL'}
-            onChange={(event) => {
-              onLabelChange(
-                event.target.value === 'ALL'
-                  ? null
-                  : Number(event.target.value),
-              );
-            }}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-          >
-            <option value="ALL">All labels</option>
-
-            {labels.map((label) => (
-              <option key={label.id} value={label.id}>
-                {label.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label
-            htmlFor="board-task-sort"
-            className="mb-1.5 block text-xs font-medium text-slate-600"
-          >
-            Sort by
-          </label>
-
-          <select
-            id="board-task-sort"
-            value={sortBy}
-            onChange={(event) =>
-              onSortByChange(event.target.value as TaskSortBy)
-            }
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-          >
-            {sortOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label
-            htmlFor="board-task-sort-order"
-            className="mb-1.5 block text-xs font-medium text-slate-600"
-          >
-            Order
-          </label>
-
-          <select
-            id="board-task-sort-order"
-            value={sortOrder}
-            onChange={(event) =>
-              onSortOrderChange(event.target.value as SortOrder)
-            }
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-          >
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
-        </div>
+        {hasActiveFilters && (
+          <div className="mt-3 flex justify-end">
+            <Button variant="ghost" type="button" onClick={onReset}>
+              Reset filters
+            </Button>
+          </div>
+        )}
       </div>
-
-      {hasActiveFilters && (
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            onClick={onReset}
-            className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
-          >
-            Reset filters
-          </button>
-        </div>
-      )}
-    </div>
+    </Card>
   );
 }

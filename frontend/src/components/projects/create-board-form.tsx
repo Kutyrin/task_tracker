@@ -1,4 +1,6 @@
 'use client';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -47,35 +49,30 @@ export function CreateBoardForm({ projectId }: CreateBoardFormProps) {
 
   return (
     <form
-      className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row"
+      className="mt-6 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row"
       onSubmit={handleSubmit(onSubmit)}
     >
       <div className="flex-1">
-        <input
+        <Input
           {...register('name')}
           type="text"
           autoComplete="off"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
+          className="w-full"
           placeholder="Main Board"
         />
 
         {errors.name && (
-          <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+          <p className="mt-1 text-sm text-destructive">{errors.name.message}</p>
         )}
       </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <Button variant="default" type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Creating...' : 'Create board'}
-      </button>
+      </Button>
 
       {createBoardMutation.isError && (
-        <p className="text-sm text-red-600">Failed to create board.</p>
+        <p className="text-sm text-destructive">Failed to create board.</p>
       )}
     </form>
   );
 }
-

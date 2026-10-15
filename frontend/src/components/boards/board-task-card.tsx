@@ -1,4 +1,7 @@
 'use client';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -39,7 +42,7 @@ function TaskCardContent({
       <div className="flex items-center justify-between gap-3">
         <Link
           href={`/tasks/${task.id}`}
-          className="min-w-0 text-xs font-semibold text-slate-500 hover:text-slate-900"
+          className="min-w-0 text-xs font-semibold text-muted-foreground hover:text-foreground"
           onClick={(event) => {
             event.stopPropagation();
           }}
@@ -48,56 +51,58 @@ function TaskCardContent({
         </Link>
 
         <div className="flex shrink-0 items-center gap-2">
-          <span className="text-xs font-medium text-slate-500">
+          <Badge
+            variant={task.priority === 'HIGH' ? 'destructive' : 'outline'}
+            className={
+              task.priority === 'MEDIUM'
+                ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                : undefined
+            }
+          >
             {priorityLabels[task.priority]}
-          </span>
+          </Badge>
 
           {showDelete && (
-            <button
+            <Button
+              variant="destructive"
+              size="sm"
               type="button"
               onPointerDown={(event) => {
                 event.stopPropagation();
               }}
               onClick={onDelete}
               disabled={isDeletePending}
-              className="rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+
               aria-label={`Delete ${task.issueKey ?? task.title}`}
             >
               {isDeletePending ? 'Deleting...' : 'Delete'}
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      <h3 className="mt-2 text-sm font-medium text-slate-950">{task.title}</h3>
+      <h3 className="mt-2 text-sm font-medium text-foreground">{task.title}</h3>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <span className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">
-          {issueTypeLabels[task.issueType]}
-        </span>
+        <Badge variant="secondary">{issueTypeLabels[task.issueType]}</Badge>
 
         {task.assignee && (
-          <span className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">
-            {task.assignee.email}
-          </span>
+          <Badge variant="secondary">{task.assignee.email}</Badge>
         )}
 
         {task.dueDate && (
-          <span className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">
+          <Badge variant="secondary">
             Due {new Date(task.dueDate).toLocaleDateString()}
-          </span>
+          </Badge>
         )}
       </div>
 
       {task.labels.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {task.labels.map((label) => (
-            <span
-              key={label.id}
-              className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600"
-            >
+            <Badge variant="secondary" key={label.id}>
               {label.name}
-            </span>
+            </Badge>
           ))}
         </div>
       )}
@@ -152,33 +157,37 @@ export function BoardTaskCard({
   };
 
   return (
-    <article
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`cursor-grab touch-manipulation rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md active:cursor-grabbing ${
-        isDragging ? 'opacity-30' : ''
-      }`}
-    >
-      <TaskCardContent
-        task={task}
-        showDelete
-        onDelete={handleDelete}
-        isDeletePending={deleteTaskMutation.isPending}
-      />
+    <Card asChild>
+      <article
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className={`cursor-grab touch-manipulation rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-input hover:shadow-md active:cursor-grabbing ${
+          isDragging ? 'opacity-30' : ''
+        }`}
+      >
+        <TaskCardContent
+          task={task}
+          showDelete
+          onDelete={handleDelete}
+          isDeletePending={deleteTaskMutation.isPending}
+        />
 
-      {deleteTaskMutation.isError && (
-        <p className="mt-2 text-xs text-red-600">Failed to delete issue.</p>
-      )}
-    </article>
+        {deleteTaskMutation.isError && (
+          <p className="mt-2 text-xs text-destructive">Failed to delete issue.</p>
+        )}
+      </article>
+    </Card>
   );
 }
 
 export function BoardTaskCardOverlay({ task }: BoardTaskCardProps) {
   return (
-    <article className="w-full cursor-grabbing rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
-      <TaskCardContent task={task} />
-    </article>
+    <Card asChild>
+      <article className="w-full cursor-grabbing rounded-xl border border-border bg-card p-4 shadow-xl">
+        <TaskCardContent task={task} />
+      </article>
+    </Card>
   );
 }
