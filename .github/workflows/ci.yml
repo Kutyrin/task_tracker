@@ -213,14 +213,15 @@ jobs:
         run: |
           for i in {1..60}; do
             if curl --connect-timeout 3 --max-time 5 -fsS http://localhost:3001/health >/dev/null &&
-               curl --connect-timeout 3 --max-time 5 -fsS http://localhost:3000 >/dev/null; then
+               curl --connect-timeout 3 --max-time 5 -fsS http://localhost:3000 >/dev/null &&
+               curl --connect-timeout 3 --max-time 5 -fsS http://localhost:8025/api/v1/messages >/dev/null; then
               exit 0
             fi
             sleep 2
           done
 
           docker compose ps
-          docker compose logs --tail=100 backend frontend
+          docker compose logs --tail=100 backend frontend mailpit
           exit 1
 
       - name: Install Playwright Chromium

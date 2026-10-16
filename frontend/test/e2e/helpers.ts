@@ -96,9 +96,16 @@ export async function addMember(
 }
 
 export async function messagesFor(request: APIRequestContext, email: string) {
-  const response = await request.get(`${mailURL}/api/v1/search`, {
-    params: { query: `to:${email}` },
-  });
+  const response = await request
+    .get(`${mailURL}/api/v1/search`, {
+      params: { query: `to:${email}` },
+    })
+    .catch((cause: unknown) => {
+      throw new Error(
+        `Mailpit is unavailable at ${mailURL}. Start Compose with --profile e2e and BACKEND_ENV_FILE=./backend/test/e2e.env (see README, Frontend E2E). Set E2E_MAIL_URL when using another port.`,
+        { cause },
+      );
+    });
   expect(
     response.ok(),
     'Mailpit must be running; enable the e2e Compose profile',

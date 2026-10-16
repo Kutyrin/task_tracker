@@ -626,6 +626,18 @@ docker compose -p task-tracker-e2e --profile e2e up -d --build --wait
 
 In PowerShell use `$env:BACKEND_ENV_FILE='./backend/test/e2e.env'` instead of `export`. The ordinary Compose stack does not start Mailpit unless the `e2e` profile is enabled.
 
+PowerShell, from the repository root (the ports above must be free):
+
+```powershell
+$env:BACKEND_ENV_FILE='./backend/test/e2e.env'
+docker compose -p task-tracker-e2e --profile e2e up -d --build --wait
+Invoke-RestMethod http://localhost:8025/api/v1/messages
+cd frontend
+npm run test:e2e -- --reporter=list
+```
+
+`ECONNREFUSED` on port 8025 means Mailpit is not reachable. Starting only the regular application stack is insufficient: the backend must also use the test SMTP settings from `backend/test/e2e.env`. Stop any ordinary local stack occupying these ports with `docker compose stop` before starting the separate E2E stack; this keeps its data. Do not delete ordinary or production volumes to fix an E2E failure.
+
 Install Chromium and run tests from `frontend`:
 
 ```bash

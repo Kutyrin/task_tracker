@@ -130,6 +130,7 @@ export function BoardTaskColumn({
 
   return (
     <section
+      data-column-id={column.id}
       ref={setNodeRef}
       style={style}
       {...attributes}
@@ -152,6 +153,8 @@ export function BoardTaskColumn({
 
       <div
         ref={setTaskDropRef}
+        data-testid="task-drop-zone"
+        data-drag-over={isOver && activeType === 'task'}
         className={`mt-4 min-h-72 rounded-xl transition ${
           isOver && activeType === 'task' ? 'bg-muted/70' : ''
         }`}
