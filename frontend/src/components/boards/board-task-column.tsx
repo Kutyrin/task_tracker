@@ -130,10 +130,11 @@ export function BoardTaskColumn({
 
   return (
     <section
+      data-column-id={column.id}
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className={`min-w-0 rounded-2xl bg-slate-100 p-4 ${
+      className={`min-w-0 rounded-2xl bg-muted p-4 ${
         isDragging ? 'z-20 opacity-30 shadow-xl' : ''
       }`}
     >
@@ -142,9 +143,9 @@ export function BoardTaskColumn({
         className="touch-none cursor-grab rounded-lg active:cursor-grabbing"
       >
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-semibold text-slate-950">{column.name}</h2>
+          <h2 className="font-semibold text-foreground">{column.name}</h2>
 
-          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
+          <span className="rounded-full bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground">
             {column._count.tasks}
           </span>
         </div>
@@ -152,8 +153,10 @@ export function BoardTaskColumn({
 
       <div
         ref={setTaskDropRef}
+        data-testid="task-drop-zone"
+        data-drag-over={isOver && activeType === 'task'}
         className={`mt-4 min-h-72 rounded-xl transition ${
-          isOver && activeType === 'task' ? 'bg-slate-200/70' : ''
+          isOver && activeType === 'task' ? 'bg-muted/70' : ''
         }`}
       >
         <SortableContext
@@ -164,8 +167,8 @@ export function BoardTaskColumn({
             showTaskPlaceholder ? (
               <TaskDropPlaceholder task={activeTask} />
             ) : (
-              <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
-                <p className="text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-input p-6 text-center">
+                <p className="text-sm text-muted-foreground">
                   {hasActiveFilters ? 'No matching issues' : 'No issues yet'}
                 </p>
               </div>

@@ -1,4 +1,5 @@
 'use client';
+import { Button } from '@/components/ui/button';
 
 import {
   closestCorners,
@@ -192,11 +193,11 @@ function BoardColumnDragOverlay({
   tasksCount: number;
 }) {
   return (
-    <div className="w-64 rounded-2xl bg-slate-100 p-4 shadow-2xl">
+    <div className="w-64 rounded-2xl bg-muted p-4 shadow-2xl">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="font-semibold text-slate-950">{name}</h2>
+        <h2 className="font-semibold text-foreground">{name}</h2>
 
-        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
+        <span className="rounded-full bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground">
           {tasksCount}
         </span>
       </div>
@@ -393,7 +394,7 @@ function BoardContent({ boardId }: { boardId: number }) {
     return (
       <main className="min-h-screen px-6 py-12">
         <div className="mx-auto max-w-6xl">
-          <p className="text-sm text-slate-500">Loading board...</p>
+          <p className="text-sm text-muted-foreground">Loading board...</p>
         </div>
       </main>
     );
@@ -403,19 +404,16 @@ function BoardContent({ boardId }: { boardId: number }) {
     return (
       <main className="min-h-screen px-6 py-12">
         <div className="mx-auto max-w-6xl">
-          <Link
-            href="/projects"
-            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-          >
-            Back to projects
-          </Link>
+          <Button asChild variant="outline">
+            <Link href="/projects">Back to projects</Link>
+          </Button>
 
-          <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-6">
-            <h1 className="text-lg font-semibold text-red-900">
+          <div className="mt-8 rounded-2xl border border-destructive/25 bg-destructive/10 p-6">
+            <h1 className="text-lg font-semibold text-destructive">
               Board not found
             </h1>
 
-            <p className="mt-2 text-sm text-red-700">
+            <p className="mt-2 text-sm text-destructive">
               The board may not exist or you may not have access to it.
             </p>
           </div>
@@ -607,19 +605,16 @@ function BoardContent({ boardId }: { boardId: number }) {
   return (
     <main className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-6xl">
-        <Link
-          href={`/projects/${board.projectId}`}
-          className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-        >
-          Back to project
-        </Link>
+        <Button asChild variant="outline">
+          <Link href={`/projects/${board.projectId}`}>Back to project</Link>
+        </Button>
 
         <div className="mt-6">
-          <p className="text-sm font-semibold tracking-wide text-slate-500">
+          <p className="text-sm font-semibold tracking-wide text-muted-foreground">
             BOARD
           </p>
 
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
             {board.name}
           </h1>
         </div>
@@ -749,7 +744,7 @@ export default function BoardPage() {
       <ProtectedRoute>
         <main className="min-h-screen px-6 py-12">
           <div className="mx-auto max-w-6xl">
-            <p className="text-sm text-red-600">Invalid board ID.</p>
+            <p className="text-sm text-destructive">Invalid board ID.</p>
           </div>
         </main>
       </ProtectedRoute>

@@ -69,6 +69,7 @@ Routes:
 | Authentication        | JWT, Passport, bcrypt, Nodemailer / SMTP                   |
 | Uploads and real-time | Multer, local filesystem, Socket.IO 4                      |
 | Frontend              | Next.js 16.3.8+, React 19.2.8, TypeScript, Tailwind CSS 4  |
+| UI components         | shadcn/ui (Radix Nova), Radix UI, Lucide icons             |
 | State and forms       | Redux Toolkit, TanStack Query, Axios, React Hook Form, Zod |
 | Backend testing       | Jest 30, SWC, Nest testing utilities, Supertest            |
 | Frontend testing      | Vitest 4, React Testing Library, jsdom, Playwright         |
@@ -76,6 +77,12 @@ Routes:
 | Infrastructure        | Docker Compose, Dockerfiles, Nginx, GitHub Actions, GHCR   |
 
 Recharts is installed, while current dashboard distributions are rendered with CSS bars.
+
+### UI customization
+
+Shared UI components live in `frontend/src/components/ui`, with the shadcn configuration in `frontend/components.json`. Buttons, inputs, textareas, native selects, labels, cards, badges, alerts, loading skeletons, and the notification popover use these components. Theme colors, typography, and corner radii are defined in `frontend/src/app/globals.css`; the palette uses `#FF9200` orange accents in both light and dark modes. The sun/moon control is available on public pages and in the application header. The first visit follows the system preference; a manual choice is saved locally under `task-tracker-theme` and persists across navigation and reloads. Customize the shared components to apply consistent changes across screens.
+
+To add a component, run `npx shadcn@latest add <component>` from `frontend`. Review generated changes before overwriting existing customized components.
 
 ## Repository Structure
 
@@ -618,6 +625,18 @@ docker compose -p task-tracker-e2e --profile e2e up -d --build --wait
 ```
 
 In PowerShell use `$env:BACKEND_ENV_FILE='./backend/test/e2e.env'` instead of `export`. The ordinary Compose stack does not start Mailpit unless the `e2e` profile is enabled.
+
+PowerShell, from the repository root (the ports above must be free):
+
+```powershell
+$env:BACKEND_ENV_FILE='./backend/test/e2e.env'
+docker compose -p task-tracker-e2e --profile e2e up -d --build --wait
+Invoke-RestMethod http://localhost:8025/api/v1/messages
+cd frontend
+npm run test:e2e -- --reporter=list
+```
+
+`ECONNREFUSED` on port 8025 means Mailpit is not reachable. Starting only the regular application stack is insufficient: the backend must also use the test SMTP settings from `backend/test/e2e.env`. Stop any ordinary local stack occupying these ports with `docker compose stop` before starting the separate E2E stack; this keeps its data. Do not delete ordinary or production volumes to fix an E2E failure.
 
 Install Chromium and run tests from `frontend`:
 

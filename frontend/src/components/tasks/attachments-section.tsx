@@ -1,4 +1,7 @@
 'use client';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 import { useRef, useState } from 'react';
 
@@ -104,87 +107,92 @@ export function AttachmentsSection({
   };
 
   return (
-    <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-950">Attachments</h2>
+    <Card asChild>
+      <section className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Attachments</h2>
 
-        <p className="mt-1 text-sm text-slate-500">
-          Files attached to this issue.
-        </p>
-      </div>
-
-      <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt"
-            onChange={handleFileChange}
-            className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800"
-          />
-
-          <button
-            type="button"
-            onClick={handleUpload}
-            disabled={!selectedFile || uploadMutation.isPending}
-            className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
-          </button>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Files attached to this issue.
+          </p>
         </div>
 
-        {selectedFile && (
-          <p className="mt-2 text-xs text-slate-500">
-            Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
-          </p>
-        )}
-
-        {validationError && (
-          <p className="mt-2 text-sm text-red-600">{validationError}</p>
-        )}
-
-        {uploadMutation.isError && (
-          <p className="mt-2 text-sm text-red-600">
-            Failed to upload attachment.
-          </p>
-        )}
-
-        <p className="mt-2 text-xs text-slate-400">
-          Maximum 5 MB. JPG, PNG, GIF, WebP, PDF or TXT.
-        </p>
-      </div>
-
-      <div className="mt-6 space-y-3">
-        {isPending && (
-          <p className="text-sm text-slate-500">Loading attachments...</p>
-        )}
-
-        {isError && (
-          <p className="text-sm text-red-600">Failed to load attachments.</p>
-        )}
-
-        {!isPending && !isError && attachments?.length === 0 && (
-          <p className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">
-            No attachments yet.
-          </p>
-        )}
-
-        {attachments?.map((attachment) => {
-          const isAuthor = attachment.user.id === currentUser?.userId;
-
-          const canDelete = isAuthor || canDeleteOthers;
-
-          return (
-            <AttachmentItem
-              key={attachment.id}
-              taskId={taskId}
-              attachment={attachment}
-              canDelete={canDelete}
+        <div className="mt-5 rounded-xl border border-dashed border-input bg-muted/40 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Input
+              ref={fileInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt"
+              onChange={handleFileChange}
+              className="w-full"
             />
-          );
-        })}
-      </div>
-    </section>
+
+            <Button
+              variant="default"
+              type="button"
+              onClick={handleUpload}
+              disabled={!selectedFile || uploadMutation.isPending}
+            >
+              {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
+            </Button>
+          </div>
+
+          {selectedFile && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)}
+              )
+            </p>
+          )}
+
+          {validationError && (
+            <p className="mt-2 text-sm text-destructive">{validationError}</p>
+          )}
+
+          {uploadMutation.isError && (
+            <p className="mt-2 text-sm text-destructive">
+              Failed to upload attachment.
+            </p>
+          )}
+
+          <p className="mt-2 text-xs text-muted-foreground">
+            Maximum 5 MB. JPG, PNG, GIF, WebP, PDF or TXT.
+          </p>
+        </div>
+
+        <div className="mt-6 space-y-3">
+          {isPending && (
+            <p className="text-sm text-muted-foreground">
+              Loading attachments...
+            </p>
+          )}
+
+          {isError && (
+            <p className="text-sm text-destructive">Failed to load attachments.</p>
+          )}
+
+          {!isPending && !isError && attachments?.length === 0 && (
+            <p className="rounded-xl border border-dashed border-input px-4 py-6 text-center text-sm text-muted-foreground">
+              No attachments yet.
+            </p>
+          )}
+
+          {attachments?.map((attachment) => {
+            const isAuthor = attachment.user.id === currentUser?.userId;
+
+            const canDelete = isAuthor || canDeleteOthers;
+
+            return (
+              <AttachmentItem
+                key={attachment.id}
+                taskId={taskId}
+                attachment={attachment}
+                canDelete={canDelete}
+              />
+            );
+          })}
+        </div>
+      </section>
+    </Card>
   );
 }
 
@@ -248,21 +256,21 @@ function AttachmentItem({
   };
 
   return (
-    <article className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <article className="flex flex-col gap-4 rounded-xl border border-border bg-muted/40 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex shrink items-center gap-3">
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={handleDownload}
           disabled={downloadMutation.isPending}
-          className="text-sm font-medium text-slate-700 transition hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {downloadMutation.isPending ? 'Downloading...' : 'Download'}
-        </button>
-        <p className="truncate text-sm font-medium text-slate-950">
+        </Button>
+        <p className="truncate text-sm font-medium text-foreground">
           {attachment.filename}
         </p>
 
-        <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs text-slate-500">
+        <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
           <span>{formatFileSize(attachment.size)}</span>
           <span>·</span>
           <span>{attachment.user.email}</span>
@@ -271,21 +279,21 @@ function AttachmentItem({
         </div>
 
         {deleteMutation.isError && (
-          <p className="mt-2 text-xs text-red-600">
+          <p className="mt-2 text-xs text-destructive">
             Failed to delete attachment.
           </p>
         )}
       </div>
 
       {canDelete && (
-        <button
+        <Button
+          variant="destructive"
           type="button"
           onClick={handleDelete}
           disabled={deleteMutation.isPending}
-          className="text-sm font-medium text-red-600 transition hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-        </button>
+        </Button>
       )}
     </article>
   );

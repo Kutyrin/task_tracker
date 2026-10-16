@@ -1,4 +1,7 @@
 'use client';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 import { useState } from 'react';
 
@@ -85,7 +88,7 @@ export function ProjectMembers({
   return (
     <div className="divide-y divide-slate-200">
       {errorMessage && (
-        <p className="pb-4 text-sm text-red-600">{errorMessage}</p>
+        <p className="pb-4 text-sm text-destructive">{errorMessage}</p>
       )}
 
       {members.map((member) => {
@@ -104,11 +107,11 @@ export function ProjectMembers({
             className="flex items-center justify-between gap-4 py-4"
           >
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-slate-950">
+              <p className="truncate text-sm font-medium text-foreground">
                 {member.user.email}
               </p>
 
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Member since {new Date(member.createdAt).toLocaleDateString()}
               </p>
             </div>
@@ -116,7 +119,7 @@ export function ProjectMembers({
             <div className="flex shrink-0 items-center gap-3">
               {canManageAsOwner ? (
                 <>
-                  <select
+                  <NativeSelect
                     value={selectedRole}
                     disabled={updateRoleMutation.isPending}
                     onChange={(event) =>
@@ -125,40 +128,39 @@ export function ProjectMembers({
                         event.target.value as EditableProjectRole,
                       )
                     }
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 outline-none transition focus:border-slate-900 disabled:opacity-60"
                   >
                     <option value="MEMBER">Member</option>
                     <option value="ADMIN">Admin</option>
-                  </select>
+                  </NativeSelect>
 
                   {hasRoleChanges && (
-                    <button
+                    <Button
+                      variant="default"
+                      size="sm"
                       type="button"
                       disabled={updateRoleMutation.isPending}
                       onClick={() =>
                         void handleRoleSave(member.id, selectedRole)
                       }
-                      className="rounded-lg bg-slate-950 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {updateRoleMutation.isPending ? 'Saving...' : 'Save'}
-                    </button>
+                    </Button>
                   )}
                 </>
               ) : (
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                  {member.role}
-                </span>
+                <Badge variant="secondary">{member.role}</Badge>
               )}
 
               {canManage && !isOwner && (
-                <button
+                <Button
+                  variant="destructive"
+                  size="sm"
                   type="button"
                   disabled={removeMemberMutation.isPending}
                   onClick={() => void handleRemove(member.id)}
-                  className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {removeMemberMutation.isPending ? 'Removing...' : 'Remove'}
-                </button>
+                </Button>
               )}
             </div>
           </div>

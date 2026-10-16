@@ -1,4 +1,9 @@
 'use client';
+import { Alert } from '@/components/ui/alert';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
@@ -67,95 +72,98 @@ export default function RegisterPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-12">
-      <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div>
-          <p className="text-sm font-medium text-slate-500">Task Tracker</p>
-
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            Create your account
-          </h1>
-
-          <p className="mt-2 text-sm text-slate-600">
-            Start organizing your projects and tasks.
-          </p>
-        </div>
-
-        <form className="mt-8 space-y-5" onSubmit={handleSubmit(onSubmit)}>
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">Email</span>
-            <input
-              {...register('email')}
-              type="email"
-              autoComplete="email"
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-              placeholder="you@example.com"
-            />
-            {errors.email && (
-              <span className="mt-1 block text-sm text-red-600">
-                {errors.email.message}
-              </span>
-            )}
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">Password</span>
-            <input
-              {...register('password')}
-              type="password"
-              autoComplete="new-password"
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-              placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;"
-            />
-            {errors.password && (
-              <span className="mt-1 block text-sm text-red-600">
-                {errors.password.message}
-              </span>
-            )}
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">
-              Confirm password
-            </span>
-            <input
-              {...register('confirmPassword')}
-              type="password"
-              autoComplete="new-password"
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-              placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;"
-            />
-            {errors.confirmPassword && (
-              <span className="mt-1 block text-sm text-red-600">
-                {errors.confirmPassword.message}
-              </span>
-            )}
-          </label>
-
-          {serverError && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-              {serverError}
+      <Card asChild>
+        <section className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">
+              Task Tracker
             </p>
-          )}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-lg bg-slate-950 px-4 py-2.5 font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting ? 'Creating account...' : 'Create account'}
-          </button>
-        </form>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
+              Create your account
+            </h1>
 
-        <p className="mt-6 text-center text-sm text-slate-600">
-          Already have an account?{' '}
-          <Link
-            href="/login"
-            className="font-medium text-slate-950 underline underline-offset-4"
-          >
-            Sign in
-          </Link>
-        </p>
-      </section>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Start organizing your projects and tasks.
+            </p>
+          </div>
+
+          <form className="mt-8 space-y-5" onSubmit={handleSubmit(onSubmit)}>
+            <Label className="block">
+              <span className="text-sm font-medium text-foreground">Email</span>
+              <Input
+                {...register('email')}
+                type="email"
+                autoComplete="email"
+                className="mt-2 w-full"
+                placeholder="you@example.com"
+              />
+              {errors.email && (
+                <span className="mt-1 block text-sm text-destructive">
+                  {errors.email.message}
+                </span>
+              )}
+            </Label>
+
+            <Label className="block">
+              <span className="text-sm font-medium text-foreground">
+                Password
+              </span>
+              <Input
+                {...register('password')}
+                type="password"
+                autoComplete="new-password"
+                className="mt-2 w-full"
+                placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;"
+              />
+              {errors.password && (
+                <span className="mt-1 block text-sm text-destructive">
+                  {errors.password.message}
+                </span>
+              )}
+            </Label>
+
+            <Label className="block">
+              <span className="text-sm font-medium text-foreground">
+                Confirm password
+              </span>
+              <Input
+                {...register('confirmPassword')}
+                type="password"
+                autoComplete="new-password"
+                className="mt-2 w-full"
+                placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;"
+              />
+              {errors.confirmPassword && (
+                <span className="mt-1 block text-sm text-destructive">
+                  {errors.confirmPassword.message}
+                </span>
+              )}
+            </Label>
+
+            {serverError && <Alert variant="destructive">{serverError}</Alert>}
+
+            <Button
+              variant="default"
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full"
+            >
+              {isSubmitting ? 'Creating account...' : 'Create account'}
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Already have an account?{' '}
+            <Link
+              href="/login"
+              className="font-medium text-foreground underline underline-offset-4"
+            >
+              Sign in
+            </Link>
+          </p>
+        </section>
+      </Card>
     </main>
   );
 }

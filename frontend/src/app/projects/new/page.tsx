@@ -1,4 +1,8 @@
 'use client';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
@@ -72,116 +76,113 @@ function CreateProjectContent() {
   return (
     <main className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-2xl">
-        <Link
-          href="/projects"
-          className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-        >
-          Back to projects
-        </Link>
+        <Button asChild variant="outline">
+          <Link href="/projects">Back to projects</Link>
+        </Button>
 
         <div className="mt-6">
-          <p className="text-sm font-medium text-slate-500">Task Tracker</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            Task Tracker
+          </p>
 
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
             Create project
           </h1>
 
-          <p className="mt-2 text-slate-600">
+          <p className="mt-2 text-muted-foreground">
             Create a project for your team and tasks.
           </p>
         </div>
 
         <form
-          className="mt-8 space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="mt-8 space-y-5 rounded-2xl border border-border bg-card p-6 shadow-sm"
           onSubmit={handleSubmit(onSubmit)}
         >
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">
+          <Label className="block">
+            <span className="text-sm font-medium text-foreground">
               Project name
             </span>
 
-            <input
+            <Input
               {...register('name')}
               type="text"
               autoComplete="off"
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
+              className="mt-2 w-full"
               placeholder="Task Tracker"
             />
 
             {errors.name && (
-              <span className="mt-1 block text-sm text-red-600">
+              <span className="mt-1 block text-sm text-destructive">
                 {errors.name.message}
               </span>
             )}
-          </label>
+          </Label>
 
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">
+          <Label className="block">
+            <span className="text-sm font-medium text-foreground">
               Project key
             </span>
 
-            <input
+            <Input
               {...register('key', {
                 setValueAs: (value: string) =>
                   value.toUpperCase().replace(/[^A-Z0-9]/g, ''),
               })}
               type="text"
               autoComplete="off"
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 uppercase outline-none transition focus:border-slate-900"
+              className="mt-2 w-full uppercase"
               placeholder="TASK"
             />
 
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               2–10 characters, uppercase letters and numbers only.
             </p>
 
             {errors.key && (
-              <span className="mt-1 block text-sm text-red-600">
+              <span className="mt-1 block text-sm text-destructive">
                 {errors.key.message}
               </span>
             )}
-          </label>
+          </Label>
 
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">
+          <Label className="block">
+            <span className="text-sm font-medium text-foreground">
               Description
             </span>
 
-            <textarea
+            <Textarea
               {...register('description')}
               rows={5}
-              className="mt-2 w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
+              className="mt-2 w-full"
               placeholder="Describe what this project is about."
             />
 
             {errors.description && (
-              <span className="mt-1 block text-sm text-red-600">
+              <span className="mt-1 block text-sm text-destructive">
                 {errors.description.message}
               </span>
             )}
-          </label>
+          </Label>
 
           {serverError && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {serverError}
             </p>
           )}
 
           <div className="flex gap-3">
-            <Link
-              href="/projects"
-              className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-            >
-              Cancel
-            </Link>
+            <Button asChild variant="outline">
+              <Link href="/projects">Cancel</Link>
+            </Button>
 
-            <button
+            <Button
+              variant="default"
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex-1"
             >
               {isSubmitting ? 'Creating...' : 'Create project'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

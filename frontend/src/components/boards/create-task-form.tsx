@@ -1,4 +1,10 @@
 'use client';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Button } from '@/components/ui/button';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -96,179 +102,184 @@ export function CreateTaskForm({
   };
 
   return (
-    <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-950">Create issue</h2>
+    <Card asChild>
+      <div className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">
+            Create issue
+          </h2>
 
-        <p className="mt-1 text-sm text-slate-600">
-          Add a task, bug, story, or epic to this board.
-        </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Add a task, bug, story, or epic to this board.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
+          <div>
+            <Label
+              htmlFor="task-title"
+              className="text-sm font-medium text-foreground"
+            >
+              Title
+            </Label>
+
+            <Input
+              id="task-title"
+              {...register('title')}
+              type="text"
+              autoComplete="off"
+              placeholder="Implement authentication"
+              className="mt-2 w-full"
+            />
+
+            {errors.title && (
+              <p className="mt-1 text-sm text-destructive">
+                {errors.title.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <Label
+              htmlFor="task-description"
+              className="text-sm font-medium text-foreground"
+            >
+              Description
+            </Label>
+
+            <Textarea
+              id="task-description"
+              {...register('description')}
+              rows={4}
+              placeholder="Describe the issue..."
+              className="mt-2 w-full"
+            />
+
+            {errors.description && (
+              <p className="mt-1 text-sm text-destructive">
+                {errors.description.message}
+              </p>
+            )}
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <Label
+                htmlFor="task-type"
+                className="text-sm font-medium text-foreground"
+              >
+                Issue type
+              </Label>
+
+              <NativeSelect
+                id="task-type"
+                {...register('issueType')}
+                className="mt-2 w-full"
+              >
+                <option value="TASK">Task</option>
+                <option value="BUG">Bug</option>
+                <option value="STORY">Story</option>
+                <option value="EPIC">Epic</option>
+              </NativeSelect>
+            </div>
+
+            <div>
+              <Label
+                htmlFor="task-priority"
+                className="text-sm font-medium text-foreground"
+              >
+                Priority
+              </Label>
+
+              <NativeSelect
+                id="task-priority"
+                {...register('priority')}
+                className="mt-2 w-full"
+              >
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+              </NativeSelect>
+            </div>
+
+            <div>
+              <Label
+                htmlFor="task-column"
+                className="text-sm font-medium text-foreground"
+              >
+                Column
+              </Label>
+
+              <NativeSelect
+                id="task-column"
+                {...register('columnId', {
+                  setValueAs: (value) => Number(value),
+                })}
+                className="mt-2 w-full"
+              >
+                {orderedColumns.map((column) => (
+                  <option key={column.id} value={column.id}>
+                    {column.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+
+            <div>
+              <Label
+                htmlFor="task-assignee"
+                className="text-sm font-medium text-foreground"
+              >
+                Assignee
+              </Label>
+
+              <NativeSelect
+                id="task-assignee"
+                {...register('assigneeId', {
+                  setValueAs: (value) => (value ? Number(value) : undefined),
+                })}
+                className="mt-2 w-full"
+              >
+                <option value="">Unassigned</option>
+
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.email}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          </div>
+
+          <div className="max-w-xs">
+            <Label
+              htmlFor="task-due-date"
+              className="text-sm font-medium text-foreground"
+            >
+              Due date
+            </Label>
+
+            <Input
+              id="task-due-date"
+              {...register('dueDate')}
+              type="date"
+              className="mt-2 w-full"
+            />
+          </div>
+
+          {createTaskMutation.isError && (
+            <p className="text-sm text-destructive">Failed to create issue.</p>
+          )}
+
+          <Button
+            variant="default"
+            type="submit"
+            disabled={isSubmitting || orderedColumns.length === 0}
+          >
+            {isSubmitting ? 'Creating...' : 'Create issue'}
+          </Button>
+        </form>
       </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
-        <div>
-          <label
-            htmlFor="task-title"
-            className="text-sm font-medium text-slate-700"
-          >
-            Title
-          </label>
-
-          <input
-            id="task-title"
-            {...register('title')}
-            type="text"
-            autoComplete="off"
-            placeholder="Implement authentication"
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-          />
-
-          {errors.title && (
-            <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>
-          )}
-        </div>
-
-        <div>
-          <label
-            htmlFor="task-description"
-            className="text-sm font-medium text-slate-700"
-          >
-            Description
-          </label>
-
-          <textarea
-            id="task-description"
-            {...register('description')}
-            rows={4}
-            placeholder="Describe the issue..."
-            className="mt-2 w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-          />
-
-          {errors.description && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.description.message}
-            </p>
-          )}
-        </div>
-
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <label
-              htmlFor="task-type"
-              className="text-sm font-medium text-slate-700"
-            >
-              Issue type
-            </label>
-
-            <select
-              id="task-type"
-              {...register('issueType')}
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-            >
-              <option value="TASK">Task</option>
-              <option value="BUG">Bug</option>
-              <option value="STORY">Story</option>
-              <option value="EPIC">Epic</option>
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="task-priority"
-              className="text-sm font-medium text-slate-700"
-            >
-              Priority
-            </label>
-
-            <select
-              id="task-priority"
-              {...register('priority')}
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-            >
-              <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="task-column"
-              className="text-sm font-medium text-slate-700"
-            >
-              Column
-            </label>
-
-            <select
-              id="task-column"
-              {...register('columnId', {
-                setValueAs: (value) => Number(value),
-              })}
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-            >
-              {orderedColumns.map((column) => (
-                <option key={column.id} value={column.id}>
-                  {column.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="task-assignee"
-              className="text-sm font-medium text-slate-700"
-            >
-              Assignee
-            </label>
-
-            <select
-              id="task-assignee"
-              {...register('assigneeId', {
-                setValueAs: (value) => (value ? Number(value) : undefined),
-              })}
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-            >
-              <option value="">Unassigned</option>
-
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.email}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="max-w-xs">
-          <label
-            htmlFor="task-due-date"
-            className="text-sm font-medium text-slate-700"
-          >
-            Due date
-          </label>
-
-          <input
-            id="task-due-date"
-            {...register('dueDate')}
-            type="date"
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
-          />
-        </div>
-
-        {createTaskMutation.isError && (
-          <p className="text-sm text-red-600">Failed to create issue.</p>
-        )}
-
-        <button
-          type="submit"
-          disabled={isSubmitting || orderedColumns.length === 0}
-          className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isSubmitting ? 'Creating...' : 'Create issue'}
-        </button>
-      </form>
-    </div>
+    </Card>
   );
 }
-

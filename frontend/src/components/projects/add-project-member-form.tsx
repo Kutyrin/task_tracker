@@ -1,4 +1,8 @@
 'use client';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Button } from '@/components/ui/button';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
@@ -60,67 +64,60 @@ export function AddProjectMemberForm({
   const canAssignAdmin = currentRole === 'OWNER';
 
   return (
-    <div className="mt-6 border-t border-slate-200 pt-6">
-      <h3 className="text-sm font-semibold text-slate-950">Add member</h3>
+    <div className="mt-6 border-t border-border pt-6">
+      <h3 className="text-sm font-semibold text-foreground">Add member</h3>
 
       <form className="mt-4 space-y-4" onSubmit={handleSubmit(onSubmit)}>
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">Email</span>
+        <Label className="block">
+          <span className="text-sm font-medium text-foreground">Email</span>
 
-          <input
+          <Input
             {...register('email')}
             type="email"
             autoComplete="off"
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none transition focus:border-slate-900"
+            className="mt-2 w-full"
             placeholder="user@example.com"
           />
 
           {errors.email && (
-            <span className="mt-1 block text-sm text-red-600">
+            <span className="mt-1 block text-sm text-destructive">
               {errors.email.message}
             </span>
           )}
-        </label>
+        </Label>
 
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">Role</span>
+        <Label className="block">
+          <span className="text-sm font-medium text-foreground">Role</span>
 
-          <select
-            {...register('role')}
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 outline-none transition focus:border-slate-900"
-          >
+          <NativeSelect {...register('role')} className="mt-2 w-full">
             <option value="MEMBER">Member</option>
 
             {canAssignAdmin && <option value="ADMIN">Admin</option>}
-          </select>
+          </NativeSelect>
 
           {errors.role && (
-            <span className="mt-1 block text-sm text-red-600">
+            <span className="mt-1 block text-sm text-destructive">
               {errors.role.message}
             </span>
           )}
-        </label>
+        </Label>
 
         {addMemberMutation.isError && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
             Failed to add member. The user may not exist or may already be a
             project member.
           </p>
         )}
 
         {successMessage && (
-          <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+          <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
             {successMessage}
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-        >
+        <Button variant="default" type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Adding...' : 'Add member'}
-        </button>
+        </Button>
       </form>
     </div>
   );

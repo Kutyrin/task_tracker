@@ -1,3 +1,5 @@
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { TaskLabels } from '@/components/tasks/task-labels';
 import type { Task } from '@/lib/tasks';
 
@@ -20,79 +22,77 @@ const priorityLabels = {
 
 export function TaskDetails({ task }: TaskDetailsProps) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold tracking-wide text-slate-500">
-            {task.issueKey ?? `#${task.id}`}
+    <Card asChild>
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold tracking-wide text-muted-foreground">
+              {task.issueKey ?? `#${task.id}`}
+            </p>
+
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
+              {task.title}
+            </h1>
+          </div>
+
+          <div className="flex gap-2">
+            <Badge variant="secondary">{issueTypeLabels[task.issueType]}</Badge>
+
+            <Badge variant="secondary">{priorityLabels[task.priority]}</Badge>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <h2 className="text-sm font-semibold text-foreground">Description</h2>
+
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+            {task.description || 'No description.'}
           </p>
-
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            {task.title}
-          </h1>
         </div>
 
-        <div className="flex gap-2">
-          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
-            {issueTypeLabels[task.issueType]}
-          </span>
+        <dl className="mt-8 grid gap-5 sm:grid-cols-2">
+          <div>
+            <dt className="text-sm text-muted-foreground">Status</dt>
+            <dd className="mt-1 font-medium text-foreground">
+              {task.column?.name ?? 'No column'}
+            </dd>
+          </div>
 
-          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
-            {priorityLabels[task.priority]}
-          </span>
-        </div>
+          <div>
+            <dt className="text-sm text-muted-foreground">Assignee</dt>
+            <dd className="mt-1 font-medium text-foreground">
+              {task.assignee?.email ?? 'Unassigned'}
+            </dd>
+          </div>
+
+          <div>
+            <dt className="text-sm text-muted-foreground">Reporter</dt>
+            <dd className="mt-1 font-medium text-foreground">
+              {task.reporter?.email ?? 'Unknown'}
+            </dd>
+          </div>
+
+          <div>
+            <dt className="text-sm text-muted-foreground">Due date</dt>
+            <dd className="mt-1 font-medium text-foreground">
+              {task.dueDate
+                ? new Date(task.dueDate).toLocaleDateString()
+                : 'No due date'}
+            </dd>
+          </div>
+        </dl>
+
+        <TaskLabels
+          taskId={task.id}
+          projectId={task.projectId}
+          initialLabels={task.labels.map((label) => ({
+            id: label.id,
+            name: label.name,
+            createdAt: new Date(0).toISOString(),
+            projectId: task.projectId ?? 0,
+          }))}
+        />
       </div>
-
-      <div className="mt-8">
-        <h2 className="text-sm font-semibold text-slate-950">Description</h2>
-
-        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-          {task.description || 'No description.'}
-        </p>
-      </div>
-
-      <dl className="mt-8 grid gap-5 sm:grid-cols-2">
-        <div>
-          <dt className="text-sm text-slate-500">Status</dt>
-          <dd className="mt-1 font-medium text-slate-950">
-            {task.column?.name ?? 'No column'}
-          </dd>
-        </div>
-
-        <div>
-          <dt className="text-sm text-slate-500">Assignee</dt>
-          <dd className="mt-1 font-medium text-slate-950">
-            {task.assignee?.email ?? 'Unassigned'}
-          </dd>
-        </div>
-
-        <div>
-          <dt className="text-sm text-slate-500">Reporter</dt>
-          <dd className="mt-1 font-medium text-slate-950">
-            {task.reporter?.email ?? 'Unknown'}
-          </dd>
-        </div>
-
-        <div>
-          <dt className="text-sm text-slate-500">Due date</dt>
-          <dd className="mt-1 font-medium text-slate-950">
-            {task.dueDate
-              ? new Date(task.dueDate).toLocaleDateString()
-              : 'No due date'}
-          </dd>
-        </div>
-      </dl>
-
-      <TaskLabels
-        taskId={task.id}
-        projectId={task.projectId}
-        initialLabels={task.labels.map((label) => ({
-          id: label.id,
-          name: label.name,
-          createdAt: new Date(0).toISOString(),
-          projectId: task.projectId ?? 0,
-        }))}
-      />
-    </div>
+    </Card>
   );
 }

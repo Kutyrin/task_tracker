@@ -147,9 +147,23 @@ test('user can create and move a task', async ({ page, request }) => {
 
   expect(taskId).toBeGreaterThan(0);
 
-  const dropZone = inProgressColumn.locator('div.mt-4.min-h-72');
+  const targetColumn = page.locator(
+    `section[data-column-id="${inProgressBoardColumn!.id}"]`,
+  );
+  const dropZone = targetColumn.getByTestId('task-drop-zone');
 
-  const taskBox = await task.boundingBox();
+  // Visibility does not mean the pointer target is inside the viewport.
+  // Scroll before measuring: raw mouse events never auto-scroll like locators do.
+  await dropZone.scrollIntoViewIfNeeded();
+  const dragHandle = task.getByRole('heading', {
+    name: taskTitle,
+    exact: true,
+  });
+  await dragHandle.scrollIntoViewIfNeeded();
+  await expect(dragHandle).toBeInViewport();
+  await expect(dropZone).toBeInViewport();
+
+  const taskBox = await dragHandle.boundingBox();
   const dropZoneBox = await dropZone.boundingBox();
 
   expect(taskBox).not.toBeNull();
@@ -174,8 +188,19 @@ test('user can create and move a task', async ({ page, request }) => {
     { steps: 15 },
   );
 
-  await page.waitForTimeout(300);
-  await page.mouse.up();
+  await expect(dropZone).toHaveAttribute('data-drag-over', 'true');
+  const [moveResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url() === `${apiURL}/tasks/${taskId}/move` &&
+        response.request().method() === 'PATCH',
+    ),
+    page.mouse.up(),
+  ]);
+  expect(moveResponse.request().postDataJSON().columnId).toBe(
+    inProgressBoardColumn!.id,
+  );
+  expect(moveResponse.ok()).toBeTruthy();
 
   await expect
     .poll(
