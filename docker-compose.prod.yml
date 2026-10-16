@@ -2,6 +2,7 @@ services:
   postgres:
     image: public.ecr.aws/docker/library/postgres:17
     restart: unless-stopped
+    stop_grace_period: 60s
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -9,10 +10,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 30s
 
   uploads-init:
     image: public.ecr.aws/docker/library/node:24-bookworm-slim
